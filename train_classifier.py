@@ -4,8 +4,8 @@ import string
 import numpy as np
 from keras import Model, Input
 from keras.layers import Dense, AvgPool2D, Flatten
-from keras.callbacks import ModelCheckpoint, TensorBoard
-from keras.optimizers import Adam
+from keras.callbacks import ModelCheckpoint, TensorBoard, ReduceLROnPlateau
+from keras.optimizers import Adam, SGD
 from keras.models import load_model
 
 from architecture.architecture_feature_exctractor import create_feature_extractor
@@ -14,10 +14,10 @@ from data.generate_data import generate_train_data
 BATCH_SIZE = 4
 VAL_SIZE = 10
 N_EPOCHS = 16000
-N_ITERATIONS = 100
+N_ITERATIONS = 200
 
 TRAIN = True
-TRAIN_FROM_START = False
+TRAIN_FROM_START = True
 
 chars_list = list(string.ascii_letters)[:10]
 # chars_list.extend(list(string.digits))
@@ -33,7 +33,7 @@ if TRAIN:
         feature_extractor, layer_36, layer_61 = create_feature_extractor(inputs)
         x = AvgPool2D()(feature_extractor)
         x = Flatten()(x)
-        output = Dense(n_categories, activation='sigmoid')(x)
+        output = Dense(n_categories, activation='softmax')(x)
 
 
         model = Model(inputs, output)
@@ -50,9 +50,12 @@ if TRAIN:
     checkpoint = ModelCheckpoint('model.h5', save_best_only=True, monitor='val_loss')
 
     # optimizer = SGD(lr=0.003)
-    optimizer = Adam(lr=0.0006)
+    optimizer = Adam()
 
-    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=['categorical_accuracy'])
+    # callback for reduce learning rate on plateau
+    lr_reduce = ReduceLROnPlateau()
+
+    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['categorical_accuracy'])
     model.fit_generator(train_data_generator, N_ITERATIONS, N_EPOCHS, callbacks=[checkpoint, tb_callback],
                         validation_data=val_data_generator, validation_steps=1)
 
