@@ -1,5 +1,5 @@
 import string
-from random import random
+from random import randint, random
 from typing import Tuple, List
 
 import numpy as np
@@ -24,6 +24,8 @@ def get_random_background(size: Size) -> np.ndarray:
     gradient = list(start_col.range_to(end_col, size[0]))
     row = np.array([list(color.get_rgb()) for color in gradient])
     bg = np.repeat(row[None, ...], size[1], axis=0)
+    n_rotations = randint(0, 3)
+    bg = np.rot90(bg, n_rotations)
 
     return bg
 
