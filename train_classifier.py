@@ -50,7 +50,7 @@ if TRAIN:
     checkpoint = ModelCheckpoint('model.h5', save_best_only=True, monitor='val_loss')
 
     # optimizer = SGD(lr=1e-3, momentum=0.9, decay=0.1, nesterov=True)
-    optimizer = Adam()
+    optimizer = Adam(lr=1e-5)
 
     # callback for reduce learning rate on plateau
     lr_reduce = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10, verbose=1)
