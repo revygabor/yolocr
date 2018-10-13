@@ -6,8 +6,14 @@ import matplotlib.pyplot as plt
 
 
 def bb_to_rect(points: List[np.ndarray]):
+    """
+    Calculates an appropriate rotated bounding rectangle based on the four points of the bounding general quad.
+    :param points: The four points of the bounding quad, given as a list of 2 element numpy arrays.
+    :return: the calculated bounding rectangle in the form of [center_x, center_y, width, height, rotation]
+    """
     if len(points) != 4:
         raise Exception("'points' should have 4 two element vectors in it")
+    # auxiliary array for simpler use in loops
     points_aug = points + [points[0]]
     side_lengths = []
     side_vects = []
@@ -15,13 +21,16 @@ def bb_to_rect(points: List[np.ndarray]):
         vect = points_aug[i + 1] - points_aug[i]
         side_vects.append(vect)
         side_lengths.append(np.linalg.norm(vect))
-    longest_side_idx = np.argmax(side_lengths)
+    longest_side_idx = np.argmax(side_lengths)  # index of the quad's longest side
     anchor_0, anchor_1 = points_aug[longest_side_idx], points_aug[longest_side_idx + 1]
     anchor_vect = anchor_1 - anchor_0
     angle = np.arctan2(anchor_vect[1], anchor_vect[0])
+    # rotation matrix used to calculate the coordinates of a point in the coordinate frame with x axis parallel to the
+    # longest side of the quad
     inv_rot = np.mat(
         [[np.cos(-angle), -np.sin(-angle)], [np.sin(-angle), np.cos(-angle)]]
     )
+    # calculating the vectors pointing from the anchor point (one of the longest side's vertices) to quad's vertices
     point_vects_from_anchor_points = [
         p - anchor_0 for p in points
     ]
@@ -30,7 +39,7 @@ def bb_to_rect(points: List[np.ndarray]):
     transformed_points = [
         np.array(np.matmul(inv_rot, v)).flatten() for v in point_vects_from_anchor_points
     ]
-    # calculating bounding rectangle in the transformed coordinate frame
+    # calculating the bounding rectangle in the transformed coordinate frame
     boundary_x_min = min([p[0] for p in transformed_points])
     boundary_x_max = max([p[0] for p in transformed_points])
     boundary_y_min = min([p[1] for p in transformed_points])
@@ -46,6 +55,7 @@ def bb_to_rect(points: List[np.ndarray]):
     rot = np.mat(
         [[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]
     )
+    # transforming the bounding rectangle back into the absolute coordinate frame
     rect = [np.array(np.matmul(rot, p)).flatten() + anchor_0 for p in rect]
     cx = (max([p[0] for p in rect]) + min([p[0] for p in rect])) / 2
     cy = (max([p[1] for p in rect]) + min([p[1] for p in rect])) / 2
@@ -54,20 +64,31 @@ def bb_to_rect(points: List[np.ndarray]):
 
 
 class SynthTextImage:
-    def __init__(self, imname, chars, bounding_boxes):
+    """
+    Class for storing data about the images of the SynthText dataset
+    """
+    def __init__(self, imname: str, chars: str, bounding_boxes: List[np.ndarray]):
         self.chars = chars
         self.imname = imname
         self.bounding_boxes = bounding_boxes
 
 
 def draw_bounding_rect_on_image(image: Image, bounding_rects: List[List[float]]):
+    """
+    Function used to draw bounding rectangles on the given PIL image
+    :param image: PIL image on which to draw the rectangles
+    :param bounding_rects: bounding rectangles given as a list of [center_x, center_y, width, height, rotation]
+    :return: the modified PIL image
+    """
     for rect in bounding_rects:
+        # extracting bounding rectangle properties from the list
         cx = rect[0]
         cy = rect[1]
         w = rect[2]
         h = rect[3]
         angle = rect[4]
         draw = ImageDraw.Draw(image)
+        # calculating the vertices of the rectangle without rotation
         points = [
             np.array([-w/2, -h/2]),
             np.array([+w/2, -h/2]),
@@ -78,9 +99,11 @@ def draw_bounding_rect_on_image(image: Image, bounding_rects: List[List[float]])
             [[np.cos(angle), -np.sin(angle)],
              [np.sin(angle), np.cos(angle)]]
         )
+        # rotating the previously calculated vertices
         points = [
             np.array(np.dot(rot, p)).flatten()+np.array([cx, cy]) for p in points
         ]
+        # PIL wants the vertices as a list of (x,y) tuples
         points = [
             (p[0], p[1]) for p in points
         ]
@@ -88,7 +111,12 @@ def draw_bounding_rect_on_image(image: Image, bounding_rects: List[List[float]])
     return image
 
 
-def read_dataset_csv(path="data/synth_data.csv"):
+def read_dataset_csv(path: str="data/synth_data.csv") -> List[SynthTextImage]:
+    """
+    Utility function used to read the SynthText ground truth data given as a csv file
+    :param path: the path of the SynthText csv file
+    :return: SynthText ground truth dataset as a list of :class:`SynthTextImage` objects
+    """
     dataset = []
     with open(path) as file:
         for line in file.readlines():
@@ -109,9 +137,12 @@ def read_dataset_csv(path="data/synth_data.csv"):
     return dataset
 
 
-
-
-def show_samples(dataset, path_prefix='data/SynthText'):
+def show_samples(dataset: List[SynthTextImage], path_prefix: str='data/SynthText'):
+    """
+    Utility function used to plot the results of the bounding quad to bounding rectangle conversion
+    :param dataset: the ground truth data given as a list of :class:`SynthTextImage` objects
+    :param path_prefix: folder path where the SynthText images can be found
+    """
     bounding_rects = []
     for img in dataset:
         for bb in img.bounding_boxes:
@@ -126,7 +157,6 @@ def show_samples(dataset, path_prefix='data/SynthText'):
         plt.imshow(np.array(draw_bounding_rect_on_image(pilimage, bounding_rects)))
         plt.show()
         bounding_rects = []
-
 
 
 if __name__ == '__main__':
