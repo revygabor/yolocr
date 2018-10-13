@@ -8,6 +8,8 @@ from PIL import Image, ImageFont, ImageDraw
 from colour import Color
 from keras.utils import to_categorical
 
+from data.augmentor.Pipeline import Pipeline
+
 Size = Tuple[int, int]
 
 
@@ -142,6 +144,7 @@ def generate_train_data(batch_size: int, char_list: List[str], font_list: List[s
     :param size_interval: the intervals we choose the size of the font from
     :return: [image]*batch_size, [char indices one-hot]*batch_size
     """
+
     while (True):
         images, indices = [], []
         # images, bboxes, indices = [], [], []
@@ -180,9 +183,21 @@ if __name__ == '__main__':
     images, indices = next(generator)
     indices = np.argmax(indices, axis=1)
 
+    p1 = Pipeline()
+    p1.elastic_distortion(probability=0.9, grid_width=256, grid_height=256, magnitude=5)
+
+    p2 = Pipeline()
+    p2.rotate(probability=0.9, max_left_rotation=10, max_right_rotation=10)
+
     for image, index in zip(images, indices):
         # image, char_index, bbox = generate_one_picture(['a', 'b'], ['arial'], (50, 100))
         # image = draw_bounding_boxes(image*255, bbox)
         print(chars_list[index])
         plt.imshow(image)
+        plt.show()
+        image2 = p1.transform(image)
+        plt.imshow(image2)
+        plt.show()
+        image3= p2.transform(image)
+        plt.imshow(image3)
         plt.show()
