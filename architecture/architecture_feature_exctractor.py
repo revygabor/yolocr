@@ -1,5 +1,4 @@
-from keras.layers import Conv2D
-from keras.layers import LeakyReLU, BatchNormalization, add#, Activation
+from keras.layers import Conv2D, LeakyReLU, BatchNormalization, add, MaxPool2D #, Activation
 
 def create_feature_extractor(input):
     """
@@ -10,19 +9,32 @@ def create_feature_extractor(input):
     :param input: input tensor
     :return: output tensor
     """
-    x       = conv2d_unit(input, 16,   3)
-    x       = conv2d_unit    (x, 32,   3, 2)
-    x, _    = _residual_units (x, 16, n=1)
-    x       = conv2d_unit    (x, 64,  3, 2)
-    x, _    = _residual_units (x, 32, n=2)
-    x       = conv2d_unit    (x, 128,  3, 2)
-    x, l_36 = _residual_units (x, 64, n=8) #------36th layer before the 'add' in the residual block
-    x       = conv2d_unit    (x, 256,  3, 2)
-    x, l_61 = _residual_units (x, 128, n=8) #------61st layer before the 'add' in the residual block
-    x       = conv2d_unit    (x, 512, 3, 2)
-    x, _    = _residual_units (x, 256, 4)
+    x       = conv2d_unit(input, 32,   3)
+    x       = MaxPool2D(pool_size=(2,2)) (x)
+    x       = conv2d_unit    (x, 64,   3)
+    x       = MaxPool2D(pool_size=(2,2)) (x)
+    x       = conv2d_unit    (x, 128,  3)
+    x       = MaxPool2D(pool_size=(2,2)) (x)
+    x       = conv2d_unit    (x, 256,  3)
+    x       = MaxPool2D(pool_size=(2,2)) (x)
 
-    return x, l_36, l_61
+
+
+
+
+    # x       = conv2d_unit(input, 32,   3)
+    # x       = conv2d_unit    (x, 64,   3, 2)
+    # x, _    = _residual_units (x, 32, n=1)
+    # x       = conv2d_unit    (x, 128,  3, 2)
+    # x, _    = _residual_units (x, 64, n=2)
+    # x       = conv2d_unit    (x, 256,  3, 2)
+    # x, l_36 = _residual_units (x, 128, n=8) #------36th layer before the 'add' in the residual block
+    # x       = conv2d_unit    (x, 512,  3, 2)
+    # x, l_61 = _residual_units (x, 256, n=8) #------61st layer before the 'add' in the residual block
+    # x       = conv2d_unit    (x, 1024, 3, 2)
+    # x, _    = _residual_units (x, 512, 4)
+
+    return x
 
 def conv2d_unit(input, filters, kernel_size, strides=1):
     """
@@ -37,7 +49,7 @@ def conv2d_unit(input, filters, kernel_size, strides=1):
     :return: Conv2D layer unit
     """
     x = Conv2D(filters, kernel_size, strides=strides, padding='same', use_bias=False)(input)
-    x = BatchNormalization()(x)
+    # x = BatchNormalization()(x)
     x = LeakyReLU(alpha = 0.1)(x)
     return x
 

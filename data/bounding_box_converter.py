@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from typing import List
 from PIL import Image, ImageDraw
@@ -87,34 +88,48 @@ def draw_bounding_rect_on_image(image: Image, bounding_rects: List[List[float]])
     return image
 
 
-dataset = []
-with open("synth_data.csv") as file:
-    for line in file.readlines():
-        split = line.split('|')
-        nums = [float(n) for n in split[2].split(',')[1:-1]]  # there's an end line character at the end of the split array
-        bbs = []
-        for i in range(0, len(nums), 8):
-            bbs.append(
-                [np.array([nums[i], nums[i + 1]]),
-                 np.array([nums[i + 2], nums[i + 3]]),
-                 np.array([nums[i + 4], nums[i + 5]]),
-                 np.array([nums[i + 6], nums[i + 7]])
-                 ]
-            )
-        dataset.append(SynthTextImage(split[0][:-1], split[1], bbs))
+def read_dataset_csv(path="data/synth_data.csv"):
+    dataset = []
+    with open(path) as file:
+        for line in file.readlines():
+            split = line.split('|')
+            nums = [float(n) for n in
+                    split[2].split(',')[1:-1]]  # there's an end line character at the end of the split array
+            bbs = []
+            for i in range(0, len(nums), 8):
+                bbs.append(
+                    [np.array([nums[i], nums[i + 1]]),
+                     np.array([nums[i + 2], nums[i + 3]]),
+                     np.array([nums[i + 4], nums[i + 5]]),
+                     np.array([nums[i + 6], nums[i + 7]])
+                     ]
+                )
+            dataset.append(SynthTextImage(split[0][:-1], split[1], bbs))
 
-bounding_rects = []
-for img in dataset:
-    for bb in img.bounding_boxes:
-        bounding_rects.append(bb_to_rect(bb))
-    path = 'SynthText\\' + img.imname.replace('/', '\\')
-    print(path)
-    pilimage = Image.open(path)
-    imdraw = ImageDraw.Draw(pilimage)
-    for bb in img.bounding_boxes:
-        imdraw.polygon([(p[0], p[1]) for p in bb])
-    plt.imshow(pilimage)
-    plt.imshow(np.array(draw_bounding_rect_on_image(pilimage, bounding_rects)))
-    plt.show()
+    return dataset
+
+
+
+
+def show_samples(dataset, path_prefix='data/SynthText'):
     bounding_rects = []
+    for img in dataset:
+        for bb in img.bounding_boxes:
+            bounding_rects.append(bb_to_rect(bb))
+        path = path_prefix + os.sep + img.imname.replace('/', os.sep)
+        print(path)
+        pilimage = Image.open(path)
+        imdraw = ImageDraw.Draw(pilimage)
+        for bb in img.bounding_boxes:
+            imdraw.polygon([(p[0], p[1]) for p in bb])
+        plt.imshow(pilimage)
+        plt.imshow(np.array(draw_bounding_rect_on_image(pilimage, bounding_rects)))
+        plt.show()
+        bounding_rects = []
+
+
+
+if __name__ == '__main__':
+    dataset = read_dataset_csv()
+    show_samples(dataset)
 

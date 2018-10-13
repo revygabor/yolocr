@@ -43,6 +43,7 @@ def put_char_on_bg(bg: np.ndarray, char: str, font_name: str, size: int,
     :return: image with the char put on
     """
     im = Image.fromarray((bg * 255).astype('uint8'))
+    color = tuple(c*255 for c in color)
     draw = ImageDraw.Draw(im)
     font = ImageFont.truetype(font_name, size)
     draw.text(position, char, fill=color, font=font)
@@ -54,7 +55,7 @@ def put_char_at_random_pos(bg: np.ndarray, char: str, font_list: List[str], size
     """
     Puts a char at a random position
     --------------------------------
-    :param bg: background to put th echar on
+    :param bg: background to put the char on
     :param char: the char we want to put on the background
     :param font_list: list of fonts we want to choose from
     :param size_interval: the intervals we choose the size of the font from
@@ -71,7 +72,14 @@ def put_char_at_random_pos(bg: np.ndarray, char: str, font_list: List[str], size
                 (int)(random() * (height - box_size[1] + 1)))  # random position
     bbox = np.array([position[0], position[1], box_size[0], box_size[1]])
 
-    im = put_char_on_bg(bg, char, font, font_size, (0, 0, 0), position=position)
+    box_color = Color(rgb=tuple(bg[position[::-1]]))
+    box_luminance = box_color.get_luminance()
+    white = (1, 1, 1)
+    black = (0, 0, 0)
+    char_color = black if box_luminance > 0.9 else white if box_luminance < 0.1 else [black, white][randint(0,1)]
+
+
+    im = put_char_on_bg(bg, char, font, font_size, char_color, position=position)
     return im, bbox
 
 
@@ -123,8 +131,8 @@ def train_boxes_to_vertices(bbox: np.ndarray):
     return list(map(tuple, [p0, p1, p2, p3]))
 
 
-def generate_train_data(batch_size: int, char_list: List[str],
-                        font_list: List[str], size_interval: Tuple[int, int]):
+def generate_train_data(batch_size: int, char_list: List[str], font_list: List[str],
+                        size_interval: Tuple[int, int], image_resolution : Tuple[int, int]=(416, 416)):
     """
     Generates images and labels for training
     -----------------------------
@@ -138,7 +146,7 @@ def generate_train_data(batch_size: int, char_list: List[str],
         images, indices = [], []
         # images, bboxes, indices = [], [], []
         for i in range(batch_size):
-            image, char_index, bbox = generate_one_picture(char_list, font_list, size_interval)
+            image, char_index, bbox = generate_one_picture(char_list, font_list, size_interval, image_resolution)
             images.append(image)
             # bboxes.append(bbox)
             indices.append(char_index)
@@ -147,7 +155,7 @@ def generate_train_data(batch_size: int, char_list: List[str],
 
 
 def generate_one_picture(char_list: List[str], font_list: List[str],
-                         size_interval: Tuple[int, int]):
+                         size_interval: Tuple[int, int], image_resolution : Tuple[int, int]=(416, 416)):
     """
     Generates one picture with a char on it.
     :param char_list: list of chars to chose from
@@ -155,7 +163,7 @@ def generate_one_picture(char_list: List[str], font_list: List[str],
     :param size_interval: the intervals we choose the size of the font from
     :return: generated image, char index, bounding box [x, y (center), w, h]
     """
-    bg = get_random_background((416, 416))
+    bg = get_random_background(image_resolution)
     char_index = (int)(random() * len(char_list))
     char = char_list[char_index]  # random char
     im, bbox = put_char_at_random_pos(bg, char, font_list, size_interval)
@@ -168,10 +176,13 @@ def generate_one_picture(char_list: List[str], font_list: List[str],
 if __name__ == '__main__':
     chars_list = list(string.ascii_letters)
     chars_list.extend(list(string.digits))
-    generator = generate_train_data(4, chars_list, ['arial'], (50, 100))
+    generator = generate_train_data(1, chars_list, ['arial'], (50, 100))
     images, indices = next(generator)
-    for image in images:
+    indices = np.argmax(indices, axis=1)
+
+    for image, index in zip(images, indices):
         # image, char_index, bbox = generate_one_picture(['a', 'b'], ['arial'], (50, 100))
         # image = draw_bounding_boxes(image*255, bbox)
+        print(chars_list[index])
         plt.imshow(image)
         plt.show()
