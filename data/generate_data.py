@@ -20,14 +20,14 @@ def get_random_background(size: Size) -> np.ndarray:
     :param size: size of the output image
     :return: randim background image
     """
-    start_col = Color(rgb=(random(), random(), random()))
+    start_col = Color(rgb=(random(), random(), random())) # get random color for the background
     end_col = Color(start_col)
-    end_col.set_luminance(start_col.get_luminance() * 0.5)
-    gradient = list(start_col.range_to(end_col, size[0]))
+    end_col.set_luminance(start_col.get_luminance() * 0.5) # set luminance for the gradient
+    gradient = list(start_col.range_to(end_col, size[0])) # we preliminary simulate shadows with gradient
     row = np.array([list(color.get_rgb()) for color in gradient])
     bg = np.repeat(row[None, ...], size[1], axis=0)
     n_rotations = randint(0, 3)
-    bg = np.rot90(bg, n_rotations)
+    bg = np.rot90(bg, n_rotations) # random gradient
 
     return bg
 
@@ -74,14 +74,15 @@ def put_char_at_random_pos(bg: np.ndarray, char: str, font_list: List[str], size
                 (int)(random() * (height - box_size[1] + 1)))  # random position
     bbox = np.array([position[0], position[1], box_size[0], box_size[1]])
 
+    # get luminance of the background to make contrast between he caracter and the background
     box_color = Color(rgb=tuple(bg[position[::-1]]))
     box_luminance = box_color.get_luminance()
     white = (1, 1, 1)
     black = (0, 0, 0)
     char_color = black if box_luminance > 0.9 else white if box_luminance < 0.1 else [black, white][randint(0,1)]
 
-
     im = put_char_on_bg(bg, char, font, font_size, char_color, position=position)
+
     return im, bbox
 
 
