@@ -28,3 +28,7 @@ Members:
 * Gábor Révy
 * Dániel Szekeres
 * Dániel Gábor Vankó
+
+## License
+
+This repository is under the [GNU GPLv3](LICENSE.md) license.
