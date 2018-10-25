@@ -1,6 +1,6 @@
 import string
 from random import randint, random
-from typing import Tuple, List
+from typing import Tuple, List, Union
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -20,10 +20,10 @@ def get_random_background(size: Size) -> np.ndarray:
     :param size: size of the output image
     :return: randim background image
     """
-    start_col = Color(rgb=(random(), random(), random())) # get random color for the background
+    start_col = Color(rgb=(random(), random(), random()))  # get random color for the background
     end_col = Color(start_col)
-    end_col.set_luminance(start_col.get_luminance() * 0.5) # set luminance for the gradient
-    gradient = list(start_col.range_to(end_col, size[0])) # we preliminary simulate shadows with gradient
+    end_col.set_luminance(start_col.get_luminance() * 0.5)  # set luminance for the gradient
+    gradient = list(start_col.range_to(end_col, size[0]))  # we preliminary simulate shadows with gradient
     row = np.array([list(color.get_rgb()) for color in gradient])
     bg = np.repeat(row[None, ...], size[1], axis=0)
     n_rotations = randint(0, 3)
@@ -146,7 +146,7 @@ def generate_train_data(batch_size: int, char_list: List[str], font_list: List[s
     :return: [image]*batch_size, [char indices one-hot]*batch_size
     """
 
-    while (True):
+    while True:
         images, indices = [], []
         # images, bboxes, indices = [], [], []
         for i in range(batch_size):
@@ -156,6 +156,53 @@ def generate_train_data(batch_size: int, char_list: List[str], font_list: List[s
             indices.append(char_index)
         yield np.array(images), to_categorical(indices, len(char_list))
         # yield images, to_categorical(indices, len(char_list)), bboxes
+
+
+def transform_to_yolo_data(
+        image_data: Tuple[np.ndarray, Union[int, List[int]], Union[np.ndarray, List[np.ndarray]]],
+        cell_sizes: List[int], anchor_boxes: List[Tuple[int, int]], char_list_length: int):
+    """
+    Generates a ground truth output to train YOLOCR with
+    # TODO: doksi
+    :param image_data:
+    :param cell_sizes:
+    :param anchor_boxes:
+    :param char_list_length:
+    :return:
+    """
+    if type(image_data[1]) is not list:
+        image_data = (image_data[0], [image_data[1]], image_data[2])
+    if image_data[2] is not list:
+        image_data = (image_data[0], image_data[1], [image_data[2]])
+    assert len(image_data[1]) == len(image_data[2]), "Character and bounding box should have equal length"
+    out_vect_length = 6+char_list_length  # [characterness offsetX offsetY w h rot a-Z+specials]
+    tensor_sizes = [
+        (
+            int(image_data[0].shape[0]/size+0.5),
+            int(image_data[0].shape[1]/size+0.5)
+        ) for size in cell_sizes
+    ]
+    out_tensors = [
+        np.zeros((height, width, out_vect_length)) for (height, width) in tensor_sizes
+    ]
+    for i in range(len(image_data[2])):
+        bb = image_data[2][i]
+        cx, cy, w, h, ang = bb  # decomposing bounding box tuple to properties of the bounding box
+        IOUs = [
+            min(ab[0], w)*min(ab[1], h)/(w*h+ab[0]*ab[1]-min(ab[0], w)*min(ab[1], h))
+            for ab in anchor_boxes
+        ]
+        best_res = np.argmax(IOUs)
+        posX = cx / cell_sizes[best_res]
+        posY = cy / cell_sizes[best_res]
+        cellX = int(posX)
+        cellY = int(posY)
+        ground_truth = np.concatenate(
+            [1, posX-cellX, cellY-cellY, w, h, ang],
+            to_categorical(image_data[1], char_list_length).flatten()
+        )
+        out_tensors[best_res][cellY, cellX, :] = ground_truth
+    return out_tensors
 
 
 def generate_one_picture(char_list: List[str], font_list: List[str],
