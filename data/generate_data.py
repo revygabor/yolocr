@@ -66,12 +66,12 @@ def put_char_at_random_pos(bg: np.ndarray, char: str, font_list: List[str], size
     bbox: [x, y (left upper), w, h]
     """
     height, width = bg.shape[0], bg.shape[1]  # get width and height of the picture
-    font_size = size_interval[0] + (int)(random() * (size_interval[1] + 1 - size_interval[0]))  # get random font size
-    font = font_list[(int)(random() * len(font_list))]  # random font
+    font_size = size_interval[0] + int(random() * (size_interval[1] + 1 - size_interval[0]))  # get random font size
+    font = font_list[int(random() * len(font_list))]  # random font
     box_size = ImageFont.truetype(font, font_size).getsize(char)  # size of font [width, height]
 
-    position = ((int)(random() * (width - box_size[0] + 1)),
-                (int)(random() * (height - box_size[1] + 1)))  # random position
+    position = (int(random() * (width - box_size[0] + 1)),
+                int(random() * (height - box_size[1] + 1)))  # random position
     bbox = np.array([position[0], position[1], box_size[0], box_size[1]])
 
     # get luminance of the background to make contrast between he caracter and the background
@@ -197,12 +197,49 @@ def transform_to_yolo_data(
         posY = cy / cell_sizes[best_res]
         cellX = int(posX)
         cellY = int(posY)
-        ground_truth = np.concatenate(
+        ground_truth = np.concatenate((
             [1, posX-cellX, cellY-cellY, w, h, ang],
-            to_categorical(image_data[1], char_list_length).flatten()
-        )
+            to_categorical(image_data[1][i], char_list_length).flatten()
+        ))
         out_tensors[best_res][cellY, cellX, :] = ground_truth
     return out_tensors
+
+
+def generate_yolo_batch(
+        batch_size: int, cell_sizes: List[int], anchor_boxes: List[Tuple[int, int]],
+        char_list: List[str], font_list: List[str],
+        size_interval: Tuple[int, int], image_resolution: Tuple[int, int]=(416, 416)):
+    """
+    TODO: doksi
+    :param batch_size:
+    :param cell_sizes:
+    :param anchor_boxes:
+    :param char_list:
+    :param font_list:
+    :param size_interval:
+    :param image_resolution:
+    :return:
+    """
+    for i in range(batch_size):
+        image_data = generate_one_picture(char_list, font_list, size_interval, image_resolution)
+        transformed = transform_to_yolo_data(image_data, cell_sizes, anchor_boxes, len(char_list))
+        if i == 0:
+            out = [
+                tensor[np.newaxis, ...] for tensor in transformed
+            ]
+        out[0] = np.concatenate((out[0], transformed[0][np.newaxis, ...]), axis=0)
+        out[1] = np.concatenate((out[1], transformed[1][np.newaxis, ...]), axis=0)
+        out[2] = np.concatenate((out[2], transformed[2][np.newaxis, ...]), axis=0)
+    return out
+
+
+def generate_yolo_train_data(
+        batch_size: int, cell_sizes: List[int], anchor_boxes: List[Tuple[int, int]],
+        char_list: List[str], font_list: List[str],
+        size_interval: Tuple[int, int], image_resolution: Tuple[int, int]=(416, 416)):
+    while True:
+        yield generate_yolo_batch(batch_size, cell_sizes, anchor_boxes,
+                            char_list, font_list, size_interval, image_resolution)
 
 
 def generate_one_picture(char_list: List[str], font_list: List[str],
