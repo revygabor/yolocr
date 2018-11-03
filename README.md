@@ -2,7 +2,7 @@
 
 ## Documentation
 
-You can find our documentation [here](https://docs.google.com/document/d/1TwqhG_d8tC9FdpSsMgAyeKpe7Og8GrGLHhAPO04WGOE/edit?usp=sharing).
+You can find our documentation for the 1st milestone [here](https://docs.google.com/document/d/1TwqhG_d8tC9FdpSsMgAyeKpe7Og8GrGLHhAPO04WGOE/edit?usp=sharing) and for the 2nd milestone [here](https://docs.google.com/document/d/1KtLaAcJHO-SYGYOT59aBaWUXCOxRgrmBJb7ZWAIh6eI/edit?usp=sharing).
 
 ## Purpose and conception
 
@@ -17,6 +17,11 @@ Our main goal is to create a optical character recognition based on YOLO ([v1][]
 ## Data for training
 
 We use [SynthText](https://github.com/ankush-me/SynthText/tree/df18cd1c0969bdbd0890cb6b9700d96caedfa943) and its pregenerated dataset, which includes approximately 800 thousands synthetic scene-text images and annotations with word-level and character-level bounding-boxes. However, these bounding-boxes are given as simple quadrilaterals and needs converting to rectangles.
+
+## Architecture and training
+
+The code for the architectures can be found [here](architecture) ([feature extractor](architecture/architecture_feature_exctractor.py) and [full network](architecture/architecture_yolocr.py))
+The code for training for classification can be found [here](train_classifier.py) and for detection [here](train_yolocr.py).
 
 ## Team
 
