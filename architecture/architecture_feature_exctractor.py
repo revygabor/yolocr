@@ -9,17 +9,19 @@ def create_feature_extractor(input):
     :param input: input tensor
     :return: output tensor
     """
-    x       = conv2d_unit(input, 32,   3)
-    x       = MaxPool2D(pool_size=(2,2)) (x)
-    x       = conv2d_unit    (x, 64,   3)
-    x       = MaxPool2D(pool_size=(2,2)) (x)
-    x       = conv2d_unit    (x, 128,  3)
-    x       = MaxPool2D(pool_size=(2,2)) (x)
-    x       = conv2d_unit    (x, 256,  3)
-    x       = MaxPool2D(pool_size=(2,2)) (x)
+    x = conv2d_unit(input, 40,   3)
+    x = MaxPool2D(pool_size=(2,2), padding='same') (x)
 
+    x = conv2d_unit    (x, 80,   3)
+    high_res = MaxPool2D(pool_size=(2,2), padding='same') (x)
+    x = high_res
 
+    x = conv2d_unit    (x, 160,  3)
+    middle_res = MaxPool2D(pool_size=(2,2), padding='same') (x)
+    x = middle_res
 
+    x = conv2d_unit    (x, 320,  3)
+    low_res = MaxPool2D(pool_size=(2,2), padding='same') (x)
 
 
     # x       = conv2d_unit(input, 32,   3)
@@ -29,12 +31,12 @@ def create_feature_extractor(input):
     # x, _    = _residual_units (x, 64, n=2)
     # x       = conv2d_unit    (x, 256,  3, 2)
     # x, l_36 = _residual_units (x, 128, n=8) #------36th layer before the 'add' in the residual block
-    # x       = conv2d_unit    (x, 512,  3, 2)
-    # x, l_61 = _residual_units (x, 256, n=8) #------61st layer before the 'add' in the residual block
-    # x       = conv2d_unit    (x, 1024, 3, 2)
-    # x, _    = _residual_units (x, 512, 4)
+    # x       = conv2d_unit    (x, 256,  3, 2)
+    # x, l_61 = _residual_units (x, 128, n=8) #------61st layer before the 'add' in the residual block
+    # x       = conv2d_unit    (x, 256, 3, 2)
+    # x, _    = _residual_units (x, 128, 4)
 
-    return x
+    return low_res, middle_res, high_res
 
 def conv2d_unit(input, filters, kernel_size, strides=1):
     """
@@ -49,17 +51,17 @@ def conv2d_unit(input, filters, kernel_size, strides=1):
     :return: Conv2D layer unit
     """
     x = Conv2D(filters, kernel_size, strides=strides, padding='same', use_bias=False)(input)
-    # x = BatchNormalization()(x)
     x = LeakyReLU(alpha = 0.1)(x)
+    # x = BatchNormalization()(x)
     return x
 
-def _residual_units(input, start_filters, n=1):
-    x = input
-
-    for i in range(n):
-        start = x
-        x = conv2d_unit(x, start_filters, 1)
-        y = conv2d_unit(x, 2*start_filters, 3)
-        x = add([start, y])
-
-    return x, y
+# def _residual_units(input, start_filters, n=1):
+#     x = input
+#
+#     for i in range(n):
+#         start = x
+#         x = conv2d_unit(x, start_filters, 1)
+#         y = conv2d_unit(x, 2*start_filters, 3)
+#         x = add([start, y])
+#
+#     return x, y

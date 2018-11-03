@@ -4,7 +4,7 @@ import string
 import numpy as np
 from keras import Model, Input
 from keras.layers import Dense, AvgPool2D, Flatten
-from keras.callbacks import ModelCheckpoint, TensorBoard, ReduceLROnPlateau
+from keras.callbacks import ModelCheckpoint, TensorBoard, ReduceLROnPlateau, EarlyStopping
 from keras.optimizers import Adam, SGD
 from keras.models import load_model
 
@@ -19,22 +19,21 @@ N_ITERATIONS = 100
 TRAIN = True
 TRAIN_FROM_START = True
 
-chars_list = list(string.ascii_letters)[:10]
-# chars_list.extend(list(string.digits))
+chars_list = list(string.ascii_letters)
+chars_list.extend(list(string.digits))
 n_categories = len(chars_list)
 
 if TRAIN:
-    train_data_generator = generate_train_data(BATCH_SIZE, chars_list, ['arial'], (50,100))
-    val_data_generator = generate_train_data(VAL_SIZE, chars_list, ['arial'], (50,100))
+    train_data_generator = generate_train_data(BATCH_SIZE, chars_list, ['arial'], (50, 100))
+    val_data_generator = generate_train_data(VAL_SIZE, chars_list, ['arial'], (50, 100))
 
     if TRAIN_FROM_START:
         # inputs = Input(shape=(None, None, 3))
         inputs = Input(shape=(416, 416, 3))
-        feature_extractor = create_feature_extractor(inputs)
+        feature_extractor, _, _ = create_feature_extractor(inputs)
         x = AvgPool2D()(feature_extractor)
         x = Flatten()(x)
         output = Dense(n_categories, activation='softmax')(x)
-
 
         model = Model(inputs, output)
         model.summary()
@@ -47,18 +46,21 @@ if TRAIN:
     tb_callback = TensorBoard(log_dir='./logs/{}'.format(now))
 
     # callback model checkpoint
-    checkpoint = ModelCheckpoint('model.h5', save_best_only=True, monitor='val_loss')
+    checkpoint = ModelCheckpoint('model.h5', save_best_only=True, monitor='loss')
 
-    # optimizer = SGD(lr=1e-3, momentum=0.9, decay=0.1, nesterov=True)
-    optimizer = Adam(lr=1e-5)
+    optimizer = SGD(lr=3e-4, momentum=0.2, decay=0.1, nesterov=True)
+    # optimizer = Adam()
 
     # callback for reduce learning rate on plateau
-    lr_reduce = ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10, verbose=1)
+    lr_reduce = ReduceLROnPlateau(monitor='val_loss', factor=0.3, patience=20, verbose=1)
 
-    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['categorical_accuracy'])
-    model.fit_generator(train_data_generator, N_ITERATIONS, N_EPOCHS, callbacks=[checkpoint, tb_callback, lr_reduce],
+    # callback for EarlyStopping
+    early_stopping = EarlyStopping(monitor='loss', min_delta=0.05, patience=10)
+
+    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+    model.fit_generator(train_data_generator, N_ITERATIONS, N_EPOCHS,
+                        callbacks=[checkpoint, tb_callback, lr_reduce, early_stopping],
                         validation_data=val_data_generator, validation_steps=1)
-
 
 # testing the model
 test_data_generator = generate_train_data(10, chars_list, ['arial'], (50, 100))
@@ -68,9 +70,8 @@ preds = model.predict(test_x)
 preds = np.argmax(preds, axis=1)
 
 from matplotlib import pyplot as plt
+
 for image, pred in zip(test_x, preds):
     print(chars_list[pred])
     plt.imshow(image)
     plt.show()
-
-
