@@ -173,18 +173,21 @@ def transform_to_yolo_data(
         image_data: Tuple[np.ndarray, Union[int, List[int]], Union[np.ndarray, List[np.ndarray]]],
         cell_sizes: List[int], anchor_boxes: List[Tuple[int, int]], char_list_length: int):
     """
-    Generates a ground truth output to train YOLOCR with
-    # TODO: doksi
-    :param image_data:
-    :param cell_sizes:
-    :param anchor_boxes:
-    :param char_list_length:
-    :return:
+    Generates a ground truth output to train YOLOCR with.
+    -----------------------------------------------------
+    :param image_data: (image, char_index, bbox)
+        image: generated image
+        char_index: character list indices of the characters drawn on the picture
+        bbox: list of bounding boxes of the characters drawn on the image
+    :param cell_sizes: size of the grid cells in in each output scale
+    :param anchor_boxes: size of the anchor boxes in each output scale
+    :param char_list_length: length of chars list we select from to draw
+    :return: list of output tensors for the network
     """
     if type(image_data[1]) is not list:
         image_data = (image_data[0], [image_data[1]], image_data[2])
-    if image_data[2] is not list:
-        image_data = (image_data[0], image_data[1], [image_data[2]])
+    # if image_data[2] is not list:
+    #     image_data = (image_data[0], image_data[1], [image_data[2]])
     assert len(image_data[1]) == len(image_data[2]), "Character and bounding box should have equal length"
     out_vect_length = 6+char_list_length  # [characterness offsetX offsetY w h rot a-Z+specials]
     tensor_sizes = [
@@ -198,7 +201,8 @@ def transform_to_yolo_data(
     ]
     for i in range(len(image_data[2])):
         bb = image_data[2][i]
-        cx, cy, w, h, ang = bb  # decomposing bounding box tuple to properties of the bounding box
+        cx, cy, w, h = bb  # decomposing bounding box tuple to properties of the bounding box
+        ang = 0 #TODO: add rotation!
         IOUs = [
             min(ab[0], w)*min(ab[1], h)/(w*h+ab[0]*ab[1]-min(ab[0], w)*min(ab[1], h))
             for ab in anchor_boxes
@@ -221,27 +225,31 @@ def generate_yolo_batch(
         char_list: List[str], font_list: List[str],
         size_interval: Tuple[int, int], image_resolution: Tuple[int, int]=(416, 416)):
     """
-    TODO: doksi
-    :param batch_size:
-    :param cell_sizes:
-    :param anchor_boxes:
-    :param char_list:
-    :param font_list:
-    :param size_interval:
-    :param image_resolution:
-    :return:
+    Generates a batch of (input, output) tuples)
+    --------------------------------------------
+    :param batch_size: batch size
+    :param cell_sizes: size of the grid cells in in each output scale
+    :param anchor_boxes: size of the anchor boxes in each output scale
+    :param char_list: list of chars to draw
+    :param font_list: list of fonts to use while drawing
+    :param size_interval: size interval of the chars drawn on the image
+    :param image_resolution: resolution of the output image
+    :return: (image, out), image: normalized image, out: list of output tensors
     """
     for i in range(batch_size):
         image_data = generate_one_picture(char_list, font_list, size_interval, image_resolution)
+        # image_data = generate_multi_character_picture(char_list, font_list, size_interval, 5, image_resolution)
         transformed = transform_to_yolo_data(image_data, cell_sizes, anchor_boxes, len(char_list))
         if i == 0:
+            images = image_data[0][np.newaxis, ...]
             out = [
                 tensor[np.newaxis, ...] for tensor in transformed
             ]
+        images = np.concatenate((images,  image_data[0][np.newaxis, ...]), axis=0)
         out[0] = np.concatenate((out[0], transformed[0][np.newaxis, ...]), axis=0)
         out[1] = np.concatenate((out[1], transformed[1][np.newaxis, ...]), axis=0)
         out[2] = np.concatenate((out[2], transformed[2][np.newaxis, ...]), axis=0)
-    return out
+    return images, out
 
 
 def generate_yolo_train_data(
@@ -285,12 +293,12 @@ def generate_multi_character_picture(
     char_indices = []
     bboxes = np.empty((0, 4))
     for _ in range(char_count):
-        cell = cells[randint(len(cells))]
+        cell = cells[randint(0, len(cells)-1)]
         char_index = int(random() * len(char_list))
         char = char_list[char_index]  # random char
         bg, bbox = put_char_at_random_pos(bg, char, font_list, size_interval, cell)
         char_indices.append(char_index)
-        bboxes = np.concatenate((bboxes, bbox))
+        bboxes = np.concatenate((bboxes, bbox[np.newaxis, ...]))
         cells.remove(cell)
     return bg, char_indices, bboxes
 
@@ -298,25 +306,29 @@ def generate_multi_character_picture(
 if __name__ == '__main__':
     chars_list = list(string.ascii_letters)
     chars_list.extend(list(string.digits))
-    generator = generate_train_data(1, chars_list, ['arial'], (50, 100))
-    images, indices = next(generator)
-    indices = np.argmax(indices, axis=1)
+    # generator = generate_train_data(1, chars_list, ['arial'], (50, 100))
+    # images, indices = next(generator)
+    # indices = np.argmax(indices, axis=1)
+    #
+    # p1 = Pipeline()
+    # p1.elastic_distortion(probability=0.9, grid_width=256, grid_height=256, magnitude=5)
+    #
+    # p2 = Pipeline()
+    # p2.rotate(probability=0.9, max_left_rotation=10, max_right_rotation=10)
+    #
+    # for image, index in zip(images, indices):
+    #     # image, char_index, bbox = generate_one_picture(['a', 'b'], ['arial'], (50, 100))
+    #     # image = draw_bounding_boxes(image*255, bbox)
+    #     print(chars_list[index])
+    #     plt.imshow(image)
+    #     plt.show()
+    #     image2 = p1.transform(image)
+    #     plt.imshow(image2)
+    #     plt.show()
+    #     image3= p2.transform(image)
+    #     plt.imshow(image3)
+    #     plt.show()
 
-    p1 = Pipeline()
-    p1.elastic_distortion(probability=0.9, grid_width=256, grid_height=256, magnitude=5)
-
-    p2 = Pipeline()
-    p2.rotate(probability=0.9, max_left_rotation=10, max_right_rotation=10)
-
-    for image, index in zip(images, indices):
-        # image, char_index, bbox = generate_one_picture(['a', 'b'], ['arial'], (50, 100))
-        # image = draw_bounding_boxes(image*255, bbox)
-        print(chars_list[index])
-        plt.imshow(image)
-        plt.show()
-        image2 = p1.transform(image)
-        plt.imshow(image2)
-        plt.show()
-        image3= p2.transform(image)
-        plt.imshow(image3)
-        plt.show()
+    val_data_generator = generate_yolo_train_data(1, [1,2,3],
+                                                  [(1,1),(2,2),(3,3)], chars_list, ['arial'], (50, 100), (416, 416))
+    print(next(val_data_generator))

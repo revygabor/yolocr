@@ -13,11 +13,11 @@ from data.generate_data import generate_train_data
 
 BATCH_SIZE = 4
 VAL_SIZE = 10
-N_EPOCHS = 16000
+N_EPOCHS = 0
 N_ITERATIONS = 100
 
 TRAIN = True
-TRAIN_FROM_START = True
+TRAIN_FROM_START = False
 
 chars_list = list(string.ascii_letters)
 chars_list.extend(list(string.digits))
@@ -27,18 +27,18 @@ if TRAIN:
     train_data_generator = generate_train_data(BATCH_SIZE, chars_list, ['arial'], (50, 100))
     val_data_generator = generate_train_data(VAL_SIZE, chars_list, ['arial'], (50, 100))
 
-    if TRAIN_FROM_START:
-        # inputs = Input(shape=(None, None, 3))
-        inputs = Input(shape=(416, 416, 3))
-        feature_extractor, _, _ = create_feature_extractor(inputs)
-        x = AvgPool2D()(feature_extractor)
-        x = Flatten()(x)
-        output = Dense(n_categories, activation='softmax')(x)
+    # inputs = Input(shape=(None, None, 3))
+    inputs = Input(shape=(416, 416, 3))
+    feature_extractor, _, _ = create_feature_extractor(inputs)
+    x = AvgPool2D()(feature_extractor)
+    x = Flatten()(x)
+    output = Dense(n_categories, activation='softmax')(x)
 
-        model = Model(inputs, output)
-        model.summary()
+    model = Model(inputs, output)
+    model_feature_extractor = Model(inputs, feature_extractor)
+    model.summary()
 
-    else:
+    if not TRAIN_FROM_START:
         model = load_model('model.h5')
 
     # callback tensorboard
@@ -61,6 +61,8 @@ if TRAIN:
     model.fit_generator(train_data_generator, N_ITERATIONS, N_EPOCHS,
                         callbacks=[checkpoint, tb_callback, lr_reduce, early_stopping],
                         validation_data=val_data_generator, validation_steps=1)
+    model = load_model('model.h5')
+    model_feature_extractor.save('model_feature_extractor.h5')
 
 # testing the model
 test_data_generator = generate_train_data(10, chars_list, ['arial'], (50, 100))
