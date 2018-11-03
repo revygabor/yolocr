@@ -271,6 +271,7 @@ def generate_one_picture(char_list: List[str], font_list: List[str],
 
     return image, char_index, bbox
 
+
 def generate_multi_character_picture(
         char_list: List[str], font_list: List[str],
         size_interval: Tuple[int, int], char_count: int, image_resolution : Tuple[int, int]=(416, 416)):
@@ -282,14 +283,14 @@ def generate_multi_character_picture(
         for j in range(char_count):
             cells.append((i*cell_width, j*cell_height, (i+1)*cell_width, (j+1)*cell_height))
     char_indices = []
-    bboxes = []
+    bboxes = np.empty((0, 4))
     for _ in range(char_count):
         cell = cells[randint(len(cells))]
         char_index = int(random() * len(char_list))
         char = char_list[char_index]  # random char
         bg, bbox = put_char_at_random_pos(bg, char, font_list, size_interval, cell)
         char_indices.append(char_index)
-        bboxes.append(bbox)
+        bboxes = np.concatenate((bboxes, bbox))
         cells.remove(cell)
     return bg, char_indices, bboxes
 
