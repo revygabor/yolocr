@@ -213,10 +213,10 @@ def transform_to_yolo_data(
         cellX = int(posX)
         cellY = int(posY)
         ground_truth = np.concatenate((
-            [1, posX-cellX, cellY-cellY, w, h, ang],
+            [1, posX-cellX, posY-cellY, w, h, ang],
             to_categorical(image_data[1][i], char_list_length).flatten()
         ))
-        out_tensors[best_res][cellY, cellX, :] = ground_truth
+        out_tensors[best_res][cellX, cellY, :] = ground_truth
     return out_tensors
 
 
@@ -245,10 +245,12 @@ def generate_yolo_batch(
             out = [
                 tensor[np.newaxis, ...] for tensor in transformed
             ]
-        images = np.concatenate((images,  image_data[0][np.newaxis, ...]), axis=0)
-        out[0] = np.concatenate((out[0], transformed[0][np.newaxis, ...]), axis=0)
-        out[1] = np.concatenate((out[1], transformed[1][np.newaxis, ...]), axis=0)
-        out[2] = np.concatenate((out[2], transformed[2][np.newaxis, ...]), axis=0)
+            #Image.fromarray((image_data[0] * 255).astype('uint8'), mode="RGB").show()
+        else:
+            images = np.concatenate((images,  image_data[0][np.newaxis, ...]), axis=0)
+            out[0] = np.concatenate((out[0], transformed[0][np.newaxis, ...]), axis=0)
+            out[1] = np.concatenate((out[1], transformed[1][np.newaxis, ...]), axis=0)
+            out[2] = np.concatenate((out[2], transformed[2][np.newaxis, ...]), axis=0)
     return images, out
 
 
