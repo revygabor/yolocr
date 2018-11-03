@@ -53,7 +53,10 @@ def put_char_on_bg(bg: np.ndarray, char: str, font_name: str, size: int,
     return im
 
 
-def put_char_at_random_pos(bg: np.ndarray, char: str, font_list: List[str], size_interval: Tuple[int, int]):
+def put_char_at_random_pos(
+        bg: np.ndarray, char: str, font_list: List[str], size_interval: Tuple[int, int],
+        free_region: Tuple[int, int, int, int] = None
+):
     """
     Puts a char at a random position
     --------------------------------
@@ -61,7 +64,9 @@ def put_char_at_random_pos(bg: np.ndarray, char: str, font_list: List[str], size
     :param char: the char we want to put on the background
     :param font_list: list of fonts we want to choose from
     :param size_interval: the intervals we choose the size of the font from
-    :return:
+    :param free_region: the region where the character can be put on the image
+            given as (left, top, right, bottom). None means the whole image
+    :return: (im, bbox)
     im: the image with the char drawn on
     bbox: [x, y (left upper), w, h]
     """
@@ -70,8 +75,14 @@ def put_char_at_random_pos(bg: np.ndarray, char: str, font_list: List[str], size
     font = font_list[int(random() * len(font_list))]  # random font
     box_size = ImageFont.truetype(font, font_size).getsize(char)  # size of font [width, height]
 
-    position = (int(random() * (width - box_size[0] + 1)),
-                int(random() * (height - box_size[1] + 1)))  # random position
+    if free_region is None:
+        position = (int(random() * (width - box_size[0] + 1)),
+                    int(random() * (height - box_size[1] + 1)))  # random position
+    else:
+        region_width = free_region[2]-free_region[0]
+        region_height = free_region[3]-free_region[1]
+        position = (int(random() * (region_width - box_size[0] + 1))+free_region[0],
+                    int(random() * (region_height - box_size[1] + 1))+free_region[1])
     bbox = np.array([position[0], position[1], box_size[0], box_size[1]])
 
     # get luminance of the background to make contrast between he caracter and the background
@@ -252,13 +263,35 @@ def generate_one_picture(char_list: List[str], font_list: List[str],
     :return: generated image, char index, bounding box [x, y (center), w, h]
     """
     bg = get_random_background(image_resolution)
-    char_index = (int)(random() * len(char_list))
+    char_index = int(random() * len(char_list))
     char = char_list[char_index]  # random char
     im, bbox = put_char_at_random_pos(bg, char, font_list, size_interval)
     image = np.array(im)/255
     bbox = xywh_to_train_box(bbox[None, ...])
 
     return image, char_index, bbox
+
+def generate_multi_character_picture(
+        char_list: List[str], font_list: List[str],
+        size_interval: Tuple[int, int], char_count: int, image_resolution : Tuple[int, int]=(416, 416)):
+    bg = get_random_background(image_resolution)
+    cells = []
+    cell_width = int(image_resolution[0]/char_count)
+    cell_height = int(image_resolution[1]/char_count)
+    for i in range(char_count):
+        for j in range(char_count):
+            cells.append((i*cell_width, j*cell_height, (i+1)*cell_width, (j+1)*cell_height))
+    char_indices = []
+    bboxes = []
+    for _ in range(char_count):
+        cell = cells[randint(len(cells))]
+        char_index = int(random() * len(char_list))
+        char = char_list[char_index]  # random char
+        bg, bbox = put_char_at_random_pos(bg, char, font_list, size_interval, cell)
+        char_indices.append(char_index)
+        bboxes.append(bbox)
+        cells.remove(cell)
+    return bg, char_indices, bboxes
 
 
 if __name__ == '__main__':
