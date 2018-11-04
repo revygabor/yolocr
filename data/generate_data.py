@@ -180,7 +180,7 @@ def transform_to_yolo_data(
         char_index: character list indices of the characters drawn on the picture
         bbox: list of bounding boxes of the characters drawn on the image
     :param cell_sizes: size of the grid cells in in each output scale
-    :param anchor_boxes: size of the anchor boxes in each output scale
+    :param anchor_boxes: [(w, h)] size of the anchor boxes in each output scale
     :param char_list_length: length of chars list we select from to draw
     :return: list of output tensors for the network
     """
@@ -213,6 +213,8 @@ def transform_to_yolo_data(
         posY = cy / cell_sizes[best_res]
         cellX = int(posX)
         cellY = int(posY)
+        w = w/anchor_boxes[best_res][0]
+        h = h/anchor_boxes[best_res][1]
         ground_truth = np.concatenate((
             [1, posX-cellX, posY-cellY, w, h, ang],
             to_categorical(image_data[1][i], char_list_length).flatten()
