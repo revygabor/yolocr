@@ -199,6 +199,7 @@ def transform_to_yolo_data(
     out_tensors = [
         np.zeros((height, width, out_vect_length)) for (height, width) in tensor_sizes
     ]
+
     for i in range(len(image_data[2])):
         bb = image_data[2][i]
         cx, cy, w, h = bb  # decomposing bounding box tuple to properties of the bounding box
