@@ -48,7 +48,7 @@ def yolo_loss(y_true, y_pred):
     loss_xy = K.sum(K.square(true_xy-pred_xy)*coord_mask_2)
     loss_wh = K.sum(K.square(K.sqrt(true_wh)-K.sqrt(pred_wh))*coord_mask_2)
     loss_rot = K.sum(K.square(true_rot-pred_rot)*coord_mask_1)
-    loss_conf = K.sum(K.square(true_conf-pred_conf) * (coord_mask_1 + noobj_mask))
+    loss_conf = K.sum(K.square(true_conf-pred_conf) * (true_conf + noobj_mask))
     loss_class = K.sum(K.binary_crossentropy(true_class, pred_class))
 
     return loss_xy+loss_wh+loss_rot+loss_conf+loss_class
