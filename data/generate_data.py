@@ -13,7 +13,7 @@ from data.augmentor.Pipeline import Pipeline
 Size = Tuple[int, int]
 
 
-def get_random_background(size: Size) -> np.ndarray:
+def get_random_background(size: Size) -> Image.Image:
     """
     Creates a background with random color and gradient
     -------------------------------------
@@ -28,12 +28,13 @@ def get_random_background(size: Size) -> np.ndarray:
     bg = np.repeat(row[None, ...], size[1], axis=0)
     n_rotations = randint(0, 3)
     bg = np.rot90(bg, n_rotations) # random gradient
+    bg = Image.fromarray((bg * 255).astype('uint8'))
 
     return bg
 
 
-def put_char_on_bg(bg: np.ndarray, char: str, font_name: str, size: int,
-                   color: Tuple[int, int, int], position: Tuple[int, int] = (0, 0)):
+def put_char_on_bg(bg: Image.Image, char: str, font_name: str, size: int,
+                   color: Tuple[int, int, int], position: Tuple[int, int] = (0, 0)) -> Image.Image:
     """
     Puts a char on an image.
     :param bg: image to put the char on
@@ -44,19 +45,17 @@ def put_char_on_bg(bg: np.ndarray, char: str, font_name: str, size: int,
     :param position: position of the font (x, y) left upper
     :return: image with the char put on
     """
-    im = Image.fromarray((bg * 255).astype('uint8'))
-    color = tuple(c*255 for c in color)
-    draw = ImageDraw.Draw(im)
+
+    draw = ImageDraw.Draw(bg)
     font = ImageFont.truetype(font_name, size)
     draw.text(position, char, fill=color, font=font)
 
-    return im
+    return bg
 
 
 def put_char_at_random_pos(
-        bg: np.ndarray, char: str, font_list: List[str], size_interval: Tuple[int, int],
-        free_region: Tuple[int, int, int, int] = None
-):
+        bg: Image.Image, char: str, font_list: List[str], size_interval: Tuple[int, int],
+        free_region: Tuple[int, int, int, int] = None) -> Tuple[Image.Image, np.ndarray]:
     """
     Puts a char at a random position
     --------------------------------
@@ -70,7 +69,7 @@ def put_char_at_random_pos(
     im: the image with the char drawn on
     bbox: [x, y (left upper), w, h]
     """
-    height, width = bg.shape[0], bg.shape[1]  # get width and height of the picture
+    height, width = bg.height, bg.width  # get width and height of the picture
     font_size = size_interval[0] + int(random() * (size_interval[1] + 1 - size_interval[0]))  # get random font size
     font = font_list[int(random() * len(font_list))]  # random font
     box_size = ImageFont.truetype(font, font_size).getsize(char)  # size of font [width, height]
@@ -86,12 +85,14 @@ def put_char_at_random_pos(
     bbox = np.array([position[0], position[1], box_size[0], box_size[1]])
 
     # get luminance of the background to make contrast between he caracter and the background
-    box_color = Color(rgb=tuple(bg[position[::-1]]))
+    pixpos = (min(max(0, position[1]), bg.width), min(max(0, position[1]), bg.height))
+    pixel = bg.getpixel(pixpos)
+    box_color = Color(rgb=tuple(c / 255. for c in pixel))
     box_luminance = box_color.get_luminance()
     white = (1, 1, 1)
     black = (0, 0, 0)
     char_color = black if box_luminance > 0.9 else white if box_luminance < 0.1 else [black, white][randint(0,1)]
-
+    char_color = tuple(c*255 for c in char_color)
     im = put_char_on_bg(bg, char, font, font_size, char_color, position=position)
 
     return im, bbox
@@ -162,6 +163,7 @@ def generate_train_data(batch_size: int, char_list: List[str], font_list: List[s
         # images, bboxes, indices = [], [], []
         for i in range(batch_size):
             image, char_index, bbox = generate_one_picture(char_list, font_list, size_interval, image_resolution)
+            image = np.array(image)/255.
             images.append(image)
             # bboxes.append(bbox)
             indices.append(char_index)
@@ -240,8 +242,8 @@ def generate_yolo_batch(
     :return: (image, out), image: normalized image, out: list of output tensors
     """
     for i in range(batch_size):
-        image_data = generate_one_picture(char_list, font_list, size_interval, image_resolution)
-        # image_data = generate_multi_character_picture(char_list, font_list, size_interval, 5, image_resolution)
+        # image_data = generate_one_picture(char_list, font_list, size_interval, image_resolution)
+        image_data = generate_multi_character_picture(char_list, font_list, size_interval, 5, image_resolution)
         transformed = transform_to_yolo_data(image_data, cell_sizes, anchor_boxes, len(char_list))
         if i == 0:
             images = image_data[0][np.newaxis, ...]
@@ -254,6 +256,9 @@ def generate_yolo_batch(
             out[0] = np.concatenate((out[0], transformed[0][np.newaxis, ...]), axis=0)
             out[1] = np.concatenate((out[1], transformed[1][np.newaxis, ...]), axis=0)
             out[2] = np.concatenate((out[2], transformed[2][np.newaxis, ...]), axis=0)
+
+    images = images / 255.
+
     return images, out
 
 
@@ -278,9 +283,9 @@ def generate_one_picture(char_list: List[str], font_list: List[str],
     bg = get_random_background(image_resolution)
     char_index = int(random() * len(char_list))
     char = char_list[char_index]  # random char
-    im, bbox = put_char_at_random_pos(bg, char, font_list, size_interval)
-    image = np.array(im)/255
+    image, bbox = put_char_at_random_pos(bg, char, font_list, size_interval)
     bbox = xywh_to_train_box(bbox[None, ...])
+    image = np.array(image)
 
     return image, char_index, bbox
 
@@ -305,7 +310,7 @@ def generate_multi_character_picture(
         char_indices.append(char_index)
         bboxes = np.concatenate((bboxes, bbox[np.newaxis, ...]))
         cells.remove(cell)
-    return bg, char_indices, bboxes
+    return np.array(bg), char_indices, bboxes
 
 
 if __name__ == '__main__':
@@ -314,12 +319,12 @@ if __name__ == '__main__':
     # generator = generate_train_data(1, chars_list, ['arial'], (50, 100))
     # images, indices = next(generator)
     # indices = np.argmax(indices, axis=1)
-    #
-    # p1 = Pipeline()
-    # p1.elastic_distortion(probability=0.9, grid_width=256, grid_height=256, magnitude=5)
-    #
-    # p2 = Pipeline()
-    # p2.rotate(probability=0.9, max_left_rotation=10, max_right_rotation=10)
+    # #
+    p1 = Pipeline()
+    p1.elastic_distortion(probability=0.9, grid_width=256, grid_height=256, magnitude=5)
+
+    p2 = Pipeline()
+    p2.rotate(probability=0.9, max_left_rotation=10, max_right_rotation=10)
     #
     # for image, index in zip(images, indices):
     #     # image, char_index, bbox = generate_one_picture(['a', 'b'], ['arial'], (50, 100))
@@ -334,6 +339,11 @@ if __name__ == '__main__':
     #     plt.imshow(image3)
     #     plt.show()
 
-    val_data_generator = generate_yolo_train_data(1, [1,2,3],
+    val_data_generator = generate_yolo_train_data(20, [1,2,3],
                                                   [(1,1),(2,2),(3,3)], chars_list, ['arial'], (50, 100), (416, 416))
-    print(next(val_data_generator))
+    from matplotlib import pyplot as plt
+    input, output = (next(val_data_generator))
+
+    for im in input:
+        plt.imshow(im)
+        plt.show()
