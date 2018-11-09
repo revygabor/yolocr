@@ -34,9 +34,11 @@ def get_random_background(size: Size) -> Image.Image:
 
 
 def put_char_on_bg(bg: Image.Image, char: str, font_name: str, size: int,
-                   color: Tuple[int, int, int], position: Tuple[int, int] = (0, 0)) -> Image.Image:
+                   color: Tuple[int, int, int], position: Tuple[int, int] = (0, 0),
+                   angle: float = 0) -> Image.Image:
     """
     Puts a char on an image.
+    :param angle: the angle of rotation of the character
     :param bg: image to put the char on
     :param char: character to put
     :param font_name:
@@ -46,19 +48,28 @@ def put_char_on_bg(bg: Image.Image, char: str, font_name: str, size: int,
     :return: image with the char put on
     """
 
-    draw = ImageDraw.Draw(bg)
     font = ImageFont.truetype(font_name, size)
-    draw.text(position, char, fill=color, font=font)
+    if angle == 0:
+        draw = ImageDraw.Draw(bg)
+        draw.text(position, char, fill=color, font=font)
+    else:
+        char_image = Image.new('RGBA', bg.size, (255,255,255,0))
+        draw = ImageDraw.Draw(char_image)
+        draw.text(char_image.size, char, fill=color, font=font)
+        bbox_size = font.getsize(char)
+        char_image.rotate(angle, center=(position[0]+bbox_size[0]/2, position[1]+bbox_size[1]/2))
+        bg = Image.composite(char_image, bg, char_image)
 
     return bg
 
 
 def put_char_at_random_pos(
         bg: Image.Image, char: str, font_list: List[str], size_interval: Tuple[int, int],
-        free_region: Tuple[int, int, int, int] = None) -> Tuple[Image.Image, np.ndarray]:
+        free_region: Tuple[int, int, int, int] = None, angle: float = 0) -> Tuple[Image.Image, np.ndarray]:
     """
     Puts a char at a random position
     --------------------------------
+    :param angle: the angle of rotation of the character
     :param bg: background to put the char on
     :param char: the char we want to put on the background
     :param font_list: list of fonts we want to choose from
@@ -82,7 +93,7 @@ def put_char_at_random_pos(
         region_height = free_region[3]-free_region[1]
         position = (int(random() * (region_width - box_size[0] + 1))+free_region[0],
                     int(random() * (region_height - box_size[1] + 1))+free_region[1])
-    bbox = np.array([position[0], position[1], box_size[0], box_size[1]])
+    bbox = np.array([position[0]+box_size[0]/2, position[1]+box_size[1]/2, box_size[0], box_size[1], angle])
 
     # get luminance of the background to make contrast between he caracter and the background
     pixpos = (min(max(0, position[1]), bg.width), min(max(0, position[1]), bg.height))
@@ -93,7 +104,7 @@ def put_char_at_random_pos(
     black = (0, 0, 0)
     char_color = black if box_luminance > 0.9 else white if box_luminance < 0.1 else [black, white][randint(0,1)]
     char_color = tuple(c*255 for c in char_color)
-    im = put_char_on_bg(bg, char, font, font_size, char_color, position=position)
+    im = put_char_on_bg(bg, char, font, font_size, char_color, position=position, angle = angle)
 
     return im, bbox
 
@@ -116,20 +127,6 @@ def draw_bounding_boxes(image: np.ndarray, bboxes: np.ndarray):
     return im
 
 
-def xywh_to_train_box(bbox: np.ndarray):
-    """
-    Converts x, y (left upper), w, h to boxes for training x, y (center), w, h
-    --------------------------------------
-    :param bbox: [x, y (left upper), w, h]
-    :return: bbox [x, y (center), w, h
-    """
-    x, y, w, h = bbox[:, 0], bbox[:, 1], bbox[:, 2], bbox[:, 3]
-    x = x + w / 2
-    y = y + h / 2
-    x, y, w, h = np.atleast_2d(x), np.atleast_2d(y), np.atleast_2d(w), np.atleast_2d(h)
-    return np.concatenate((x, y, w, h), axis=1)
-
-
 def train_boxes_to_vertices(bbox: np.ndarray):
     """
     Converts x, y (center), w, h to 4 vertices for showing bounding boxes
@@ -137,7 +134,10 @@ def train_boxes_to_vertices(bbox: np.ndarray):
     :param bbox:  [x, y (center), w, h]
     :return: [(x0, y0), (x1, y1), (x2, y2), (x3, y3)]
     """
-    x, y, w, h = bbox
+    if len(bbox) == 4:
+        x, y, w, h = bbox
+    else:
+        x, y, w, h, angle = bbox
     p0 = np.array([x - w / 2, y - h / 2])
     p1 = np.array([x + w / 2, y - h / 2])
     p2 = np.array([x + w / 2, y + h / 2])
@@ -204,8 +204,7 @@ def transform_to_yolo_data(
 
     for i in range(len(image_data[2])):
         bb = image_data[2][i]
-        cx, cy, w, h = bb  # decomposing bounding box tuple to properties of the bounding box
-        ang = 0 #TODO: add rotation!
+        cx, cy, w, h, ang = bb  # decomposing bounding box tuple to properties of the bounding box
         IOUs = [
             min(ab[0], w)*min(ab[1], h)/(w*h+ab[0]*ab[1]-min(ab[0], w)*min(ab[1], h))
             for ab in anchor_boxes
@@ -250,7 +249,6 @@ def generate_yolo_batch(
             out = [
                 tensor[np.newaxis, ...] for tensor in transformed
             ]
-            #Image.fromarray((image_data[0] * 255).astype('uint8'), mode="RGB").show()
         else:
             images = np.concatenate((images,  image_data[0][np.newaxis, ...]), axis=0)
             out[0] = np.concatenate((out[0], transformed[0][np.newaxis, ...]), axis=0)
@@ -284,15 +282,14 @@ def generate_one_picture(char_list: List[str], font_list: List[str],
     char_index = int(random() * len(char_list))
     char = char_list[char_index]  # random char
     image, bbox = put_char_at_random_pos(bg, char, font_list, size_interval)
-    bbox = xywh_to_train_box(bbox[None, ...])
     image = np.array(image)
 
-    return image, char_index, bbox
+    return image, char_index, np.atleast_2d(bbox)
 
 
 def generate_multi_character_picture(
         char_list: List[str], font_list: List[str],
-        size_interval: Tuple[int, int], char_count: int, image_resolution : Tuple[int, int]=(416, 416)):
+        size_interval: Tuple[int, int], char_count: int, image_resolution: Tuple[int, int]=(416, 416)):
     bg = get_random_background(image_resolution)
     cells = []
     cell_width = int(image_resolution[0]/char_count)
@@ -313,6 +310,32 @@ def generate_multi_character_picture(
     return np.array(bg), char_indices, bboxes
 
 
+def generate_rotated_multi_character_picture(
+        char_list: List[str], font_list: List[str],
+        size_interval: Tuple[int, int], char_count: int,
+        angle_range: Tuple[float, float],
+        image_resolution: Tuple[int, int]=(416, 416)):
+    bg = get_random_background(image_resolution)
+    cells = []
+    cell_width = int(image_resolution[0]/char_count)
+    cell_height = int(image_resolution[1]/char_count)
+    for i in range(char_count):
+        for j in range(char_count):
+            cells.append((i*cell_width, j*cell_height, (i+1)*cell_width, (j+1)*cell_height))
+    char_indices = []
+    bboxes = np.empty((0, 4))
+    for _ in range(char_count):
+        cell = cells[randint(0, len(cells)-1)]
+        char_index = int(random() * len(char_list))
+        char = char_list[char_index]  # random char
+        angle = np.random.rand() * (angle_range[1] - angle_range[0]) + angle_range[0]
+        bg, bbox = put_char_at_random_pos(bg, char, font_list, size_interval, cell, angle=angle)
+        char_indices.append(char_index)
+        bboxes = np.concatenate((bboxes, bbox[np.newaxis, ...]))
+        cells.remove(cell)
+    return np.array(bg), char_indices, bboxes
+
+
 if __name__ == '__main__':
     chars_list = list(string.ascii_letters)
     chars_list.extend(list(string.digits))
@@ -320,11 +343,11 @@ if __name__ == '__main__':
     # images, indices = next(generator)
     # indices = np.argmax(indices, axis=1)
     # #
-    p1 = Pipeline()
-    p1.elastic_distortion(probability=0.9, grid_width=256, grid_height=256, magnitude=5)
-
-    p2 = Pipeline()
-    p2.rotate(probability=0.9, max_left_rotation=10, max_right_rotation=10)
+    # p1 = Pipeline()
+    # p1.elastic_distortion(probability=0.9, grid_width=256, grid_height=256, magnitude=5)
+    #
+    # p2 = Pipeline()
+    # p2.rotate(probability=0.9, max_left_rotation=10, max_right_rotation=10)
     #
     # for image, index in zip(images, indices):
     #     # image, char_index, bbox = generate_one_picture(['a', 'b'], ['arial'], (50, 100))
