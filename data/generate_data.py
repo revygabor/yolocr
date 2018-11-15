@@ -55,9 +55,9 @@ def put_char_on_bg(bg: Image.Image, char: str, font_name: str, size: int,
     else:
         char_image = Image.new('RGBA', bg.size, (255,255,255,0))
         draw = ImageDraw.Draw(char_image)
-        draw.text(char_image.size, char, fill=color, font=font)
+        draw.text(position, char, fill=color, font=font)
         bbox_size = font.getsize(char)
-        char_image.rotate(angle, center=(position[0]+bbox_size[0]/2, position[1]+bbox_size[1]/2))
+        char_image = char_image.rotate(angle, center=(position[0]+bbox_size[0]/2, position[1]+bbox_size[1]/2))
         bg = Image.composite(char_image, bg, char_image)
 
     return bg
@@ -227,7 +227,7 @@ def transform_to_yolo_data(
 def generate_yolo_batch(
         batch_size: int, cell_sizes: List[int], anchor_boxes: List[Tuple[int, int]],
         char_list: List[str], font_list: List[str],
-        size_interval: Tuple[int, int], image_resolution: Tuple[int, int]=(416, 416)):
+        size_interval: Tuple[int, int], angle_range: Tuple[int, int], image_resolution: Tuple[int, int]=(416, 416)):
     """
     Generates a batch of (input, output) tuples)
     --------------------------------------------
@@ -242,7 +242,8 @@ def generate_yolo_batch(
     """
     for i in range(batch_size):
         # image_data = generate_one_picture(char_list, font_list, size_interval, image_resolution)
-        image_data = generate_multi_character_picture(char_list, font_list, size_interval, 5, image_resolution)
+        # image_data = generate_multi_character_picture(char_list, font_list, size_interval, 5, image_resolution)
+        image_data = generate_rotated_multi_character_picture(char_list, font_list, size_interval, 5, angle_range, image_resolution)
         transformed = transform_to_yolo_data(image_data, cell_sizes, anchor_boxes, len(char_list))
         if i == 0:
             images = image_data[0][np.newaxis, ...]
@@ -263,10 +264,10 @@ def generate_yolo_batch(
 def generate_yolo_train_data(
         batch_size: int, cell_sizes: List[int], anchor_boxes: List[Tuple[int, int]],
         char_list: List[str], font_list: List[str],
-        size_interval: Tuple[int, int], image_resolution: Tuple[int, int]=(416, 416)):
+        size_interval: Tuple[int, int], angle_range: Tuple[int, int], image_resolution: Tuple[int, int]=(416, 416)):
     while True:
         yield generate_yolo_batch(batch_size, cell_sizes, anchor_boxes,
-                            char_list, font_list, size_interval, image_resolution)
+                            char_list, font_list, size_interval, angle_range, image_resolution)
 
 
 def generate_one_picture(char_list: List[str], font_list: List[str],
@@ -323,7 +324,7 @@ def generate_rotated_multi_character_picture(
         for j in range(char_count):
             cells.append((i*cell_width, j*cell_height, (i+1)*cell_width, (j+1)*cell_height))
     char_indices = []
-    bboxes = np.empty((0, 4))
+    bboxes = np.empty((0, 5))
     for _ in range(char_count):
         cell = cells[randint(0, len(cells)-1)]
         char_index = int(random() * len(char_list))
@@ -362,10 +363,19 @@ if __name__ == '__main__':
     #     plt.imshow(image3)
     #     plt.show()
 
-    val_data_generator = generate_yolo_train_data(20, [1,2,3],
-                                                  [(1,1),(2,2),(3,3)], chars_list, ['arial'], (50, 100), (416, 416))
+    # val_data_generator = generate_yolo_train_data(20, [1,2,3],
+    #                                               [(1,1),(2,2),(3,3)], chars_list, ['arial'], (50, 100), (416, 416))
+    # from matplotlib import pyplot as plt
+    # input, output = (next(val_data_generator))
+    #
+    # for im in input:
+    #     plt.imshow(im)
+    #     plt.show()
+
+    data_generator = generate_yolo_train_data(20, [1,2,3],
+                                              [(1,1),(2,2),(3,3)], chars_list, ['arial'], (50, 100), (-90, 90), (416, 416))
     from matplotlib import pyplot as plt
-    input, output = (next(val_data_generator))
+    input, output = (next(data_generator))
 
     for im in input:
         plt.imshow(im)
