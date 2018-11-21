@@ -58,7 +58,11 @@ def put_char_on_bg(bg: Image.Image, char: str, font_name: str, size: int,
         draw = ImageDraw.Draw(char_image)
         draw.text(position, char, fill=color, font=font)
         bbox_size = font.getsize(char)
-        char_image = char_image.rotate(angle/np.pi*180, center=(position[0]+bbox_size[0]/2, position[1]+bbox_size[1]/2))
+        # we use a left-handed coordinate system on images, so we define a positive angle as a clockwise rotation.
+        # this could be defined differently, but this way all the trigonometric functions (used e.g. in the SynthText
+        # preprocessing and in the bounding box drawer) remain consistent. PIL uses a different convention, so we
+        # have to negate the angle here
+        char_image = char_image.rotate(-angle/np.pi*180, center=(position[0]+bbox_size[0]/2, position[1]+bbox_size[1]/2))
         bg = Image.composite(char_image, bg, char_image)
 
     return bg
