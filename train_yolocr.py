@@ -17,6 +17,7 @@ n_classes = len(chars_list)
 BATCH_SIZE = 4
 N_ITERATIONS = 100
 N_EPOCHS = 1000
+TRAIN_FROM_START = False
 
 lambdacoord = 5
 lambdanoobj = .5
@@ -32,7 +33,7 @@ def yolo_loss(y_true, y_pred):
     true_conf = y_true[..., 0]
     true_xy = y_true[..., 1:3]
     true_wh = y_true[..., 3:5]
-    true_rot = y_true[..., 5]
+    true_rot = y_true[..., 5] * np.pi
     true_class = y_true[..., 6:]
 
     pred_conf = K.sigmoid(y_pred[..., 0])
@@ -54,42 +55,47 @@ def yolo_loss(y_true, y_pred):
     return loss_xy+loss_wh+loss_rot+loss_conf+loss_class
 
 
-# inputs = Input(shape=(None, None, 3))
-inputs = Input(shape=(416, 416, 3))
-feature_extractor, yolocr = create_yolocr_architectre(inputs, n_classes)
+if __name__ == '__main__':
 
-# we load the weights into the feature extractor
-feature_extractor.load_weights('model_feature_extractor.h5')
+    # inputs = Input(shape=(None, None, 3))
+    inputs = Input(shape=(416, 416, 3))
+    feature_extractor, yolocr = create_yolocr_architectre(inputs, n_classes)
 
-# we freeze the feature extractor part
-for layer in feature_extractor.layers:
-    layer.trainable = False
+    # we load the weights into the feature extractor
+    feature_extractor.load_weights('model_feature_extractor.h5')
 
-# callback tensorboard
-now = time.strftime('%y%m%d%H%M')
-tb_callback = TensorBoard(log_dir='./logs/{}'.format(now))
+    if not TRAIN_FROM_START:
+        yolocr.load_weights('yolocr_model.h5')
 
-# callback model checkpoint
-checkpoint = ModelCheckpoint('yolocr_model.h5', save_best_only=True, monitor='loss')
+    # we freeze the feature extractor part
+    for layer in feature_extractor.layers:
+        layer.trainable = False
 
-# optimizer = SGD(lr=3e-4, momentum=0.2, decay=0.1, nesterov=True)
-optimizer = Adam()
+    # callback tensorboard
+    now = time.strftime('%y%m%d%H%M')
+    tb_callback = TensorBoard(log_dir='./logs/{}'.format(now))
 
-# callback for reduce learning rate on plateau
-lr_reduce = ReduceLROnPlateau(monitor='val_loss', factor=0.3, patience=20, verbose=1)
+    # callback model checkpoint
+    checkpoint = ModelCheckpoint('yolocr_model.h5', save_best_only=True, monitor='loss')
 
-# callback for EarlyStopping
-early_stopping = EarlyStopping(monitor='loss', min_delta=0.05, patience=20)
+    # optimizer = SGD(lr=3e-4, momentum=0.2, decay=0.1, nesterov=True)
+    optimizer = Adam()
 
-yolocr.compile(optimizer=optimizer, loss=yolo_loss)
-yolocr.summary()
+    # callback for reduce learning rate on plateau
+    lr_reduce = ReduceLROnPlateau(monitor='val_loss', factor=0.3, patience=20, verbose=1)
 
-cell_sizes = [16, 8, 4]
-anchor_boxes = [(64, 64), (32, 32), (16, 16)]
-train_data_generator = generate_yolo_train_data(BATCH_SIZE, cell_sizes,
-                                                anchor_boxes, chars_list, ['arial'], (50, 100), (416,416))
-val_data_generator = generate_yolo_train_data(BATCH_SIZE, cell_sizes,
-                                     anchor_boxes, chars_list, ['arial'], (50, 100),(416,416))
-yolocr.fit_generator(train_data_generator, N_ITERATIONS, N_EPOCHS,
-                     callbacks=[checkpoint, tb_callback, lr_reduce, early_stopping],
-                     validation_data=val_data_generator, validation_steps=1)
+    # callback for EarlyStopping
+    early_stopping = EarlyStopping(monitor='loss', min_delta=0.05, patience=20)
+
+    yolocr.compile(optimizer=optimizer, loss=yolo_loss)
+    yolocr.summary()
+
+    cell_sizes = [16, 8, 4]
+    anchor_boxes = [(64, 64), (32, 32), (16, 16)]
+    train_data_generator = generate_yolo_train_data(BATCH_SIZE, cell_sizes,
+                                                    anchor_boxes, chars_list, ['arial'], (50, 100), (0,0), (416,416))
+    val_data_generator = generate_yolo_train_data(BATCH_SIZE, cell_sizes,
+                                         anchor_boxes, chars_list, ['arial'], (50, 100),(0,0), (416,416))
+    yolocr.fit_generator(train_data_generator, N_ITERATIONS, N_EPOCHS,
+                         callbacks=[checkpoint, tb_callback, lr_reduce, early_stopping],
+                         validation_data=val_data_generator, validation_steps=1)

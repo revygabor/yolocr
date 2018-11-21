@@ -8,7 +8,8 @@ from PIL import Image, ImageFont, ImageDraw
 from colour import Color
 from keras.utils import to_categorical
 
-from data.augmentor.Pipeline import Pipeline
+# from data.augmentor.Pipeline import Pipeline
+from data.bounding_box_converter import draw_bounding_rect_on_image
 
 Size = Tuple[int, int]
 
@@ -57,7 +58,7 @@ def put_char_on_bg(bg: Image.Image, char: str, font_name: str, size: int,
         draw = ImageDraw.Draw(char_image)
         draw.text(position, char, fill=color, font=font)
         bbox_size = font.getsize(char)
-        char_image = char_image.rotate(angle, center=(position[0]+bbox_size[0]/2, position[1]+bbox_size[1]/2))
+        char_image = char_image.rotate(angle/np.pi*180, center=(position[0]+bbox_size[0]/2, position[1]+bbox_size[1]/2))
         bg = Image.composite(char_image, bg, char_image)
 
     return bg
@@ -147,7 +148,7 @@ def train_boxes_to_vertices(bbox: np.ndarray):
 
 
 def generate_train_data(batch_size: int, char_list: List[str], font_list: List[str],
-                        size_interval: Tuple[int, int], image_resolution : Tuple[int, int]=(416, 416)):
+                        size_interval: Tuple[int, int], angle_range: Tuple[int, int]=(0,0), image_resolution : Tuple[int, int]=(416, 416)):
     """
     Generates images and labels for training
     -----------------------------
@@ -162,7 +163,8 @@ def generate_train_data(batch_size: int, char_list: List[str], font_list: List[s
         images, indices = [], []
         # images, bboxes, indices = [], [], []
         for i in range(batch_size):
-            image, char_index, bbox = generate_one_picture(char_list, font_list, size_interval, image_resolution)
+            image, char_index, bbox = generate_rotated_multi_character_picture(char_list, font_list, size_interval,
+                                        char_count=1, angle_range=angle_range, image_resolution=image_resolution)
             image = np.array(image)/255.
             images.append(image)
             # bboxes.append(bbox)
@@ -220,14 +222,14 @@ def transform_to_yolo_data(
             [1, posX-cellX, posY-cellY, w, h, ang],
             to_categorical(image_data[1][i], char_list_length).flatten()
         ))
-        out_tensors[best_res][cellX, cellY, :] = ground_truth
+        out_tensors[best_res][cellY, cellX, :] = ground_truth
     return out_tensors
 
 
 def generate_yolo_batch(
         batch_size: int, cell_sizes: List[int], anchor_boxes: List[Tuple[int, int]],
         char_list: List[str], font_list: List[str],
-        size_interval: Tuple[int, int], angle_range: Tuple[int, int], image_resolution: Tuple[int, int]=(416, 416)):
+        size_interval: Tuple[int, int], angle_range: Tuple[int, int] = (0,0), image_resolution: Tuple[int, int]=(416, 416)):
     """
     Generates a batch of (input, output) tuples)
     --------------------------------------------
@@ -241,8 +243,6 @@ def generate_yolo_batch(
     :return: (image, out), image: normalized image, out: list of output tensors
     """
     for i in range(batch_size):
-        # image_data = generate_one_picture(char_list, font_list, size_interval, image_resolution)
-        # image_data = generate_multi_character_picture(char_list, font_list, size_interval, 5, image_resolution)
         image_data = generate_rotated_multi_character_picture(char_list, font_list, size_interval, 5, angle_range, image_resolution)
         transformed = transform_to_yolo_data(image_data, cell_sizes, anchor_boxes, len(char_list))
         if i == 0:
@@ -264,51 +264,10 @@ def generate_yolo_batch(
 def generate_yolo_train_data(
         batch_size: int, cell_sizes: List[int], anchor_boxes: List[Tuple[int, int]],
         char_list: List[str], font_list: List[str],
-        size_interval: Tuple[int, int], angle_range: Tuple[int, int], image_resolution: Tuple[int, int]=(416, 416)):
+        size_interval: Tuple[int, int], angle_range: Tuple[int, int] = (0,0), image_resolution: Tuple[int, int]=(416, 416)):
     while True:
         yield generate_yolo_batch(batch_size, cell_sizes, anchor_boxes,
                             char_list, font_list, size_interval, angle_range, image_resolution)
-
-
-def generate_one_picture(char_list: List[str], font_list: List[str],
-                         size_interval: Tuple[int, int], image_resolution : Tuple[int, int]=(416, 416)):
-    """
-    Generates one picture with a char on it.
-    :param char_list: list of chars to chose from
-    :param font_list: list of fonts to choose from
-    :param size_interval: the intervals we choose the size of the font from
-    :return: generated image, char index, bounding box [x, y (center), w, h]
-    """
-    bg = get_random_background(image_resolution)
-    char_index = int(random() * len(char_list))
-    char = char_list[char_index]  # random char
-    image, bbox = put_char_at_random_pos(bg, char, font_list, size_interval)
-    image = np.array(image)
-
-    return image, char_index, np.atleast_2d(bbox)
-
-
-def generate_multi_character_picture(
-        char_list: List[str], font_list: List[str],
-        size_interval: Tuple[int, int], char_count: int, image_resolution: Tuple[int, int]=(416, 416)):
-    bg = get_random_background(image_resolution)
-    cells = []
-    cell_width = int(image_resolution[0]/char_count)
-    cell_height = int(image_resolution[1]/char_count)
-    for i in range(char_count):
-        for j in range(char_count):
-            cells.append((i*cell_width, j*cell_height, (i+1)*cell_width, (j+1)*cell_height))
-    char_indices = []
-    bboxes = np.empty((0, 4))
-    for _ in range(char_count):
-        cell = cells[randint(0, len(cells)-1)]
-        char_index = int(random() * len(char_list))
-        char = char_list[char_index]  # random char
-        bg, bbox = put_char_at_random_pos(bg, char, font_list, size_interval, cell)
-        char_indices.append(char_index)
-        bboxes = np.concatenate((bboxes, bbox[np.newaxis, ...]))
-        cells.remove(cell)
-    return np.array(bg), char_indices, bboxes
 
 
 def generate_rotated_multi_character_picture(
@@ -340,43 +299,14 @@ def generate_rotated_multi_character_picture(
 if __name__ == '__main__':
     chars_list = list(string.ascii_letters)
     chars_list.extend(list(string.digits))
-    # generator = generate_train_data(1, chars_list, ['arial'], (50, 100))
-    # images, indices = next(generator)
-    # indices = np.argmax(indices, axis=1)
-    # #
-    # p1 = Pipeline()
-    # p1.elastic_distortion(probability=0.9, grid_width=256, grid_height=256, magnitude=5)
-    #
-    # p2 = Pipeline()
-    # p2.rotate(probability=0.9, max_left_rotation=10, max_right_rotation=10)
-    #
-    # for image, index in zip(images, indices):
-    #     # image, char_index, bbox = generate_one_picture(['a', 'b'], ['arial'], (50, 100))
-    #     # image = draw_bounding_boxes(image*255, bbox)
-    #     print(chars_list[index])
-    #     plt.imshow(image)
-    #     plt.show()
-    #     image2 = p1.transform(image)
-    #     plt.imshow(image2)
-    #     plt.show()
-    #     image3= p2.transform(image)
-    #     plt.imshow(image3)
-    #     plt.show()
-
-    # val_data_generator = generate_yolo_train_data(20, [1,2,3],
-    #                                               [(1,1),(2,2),(3,3)], chars_list, ['arial'], (50, 100), (416, 416))
-    # from matplotlib import pyplot as plt
-    # input, output = (next(val_data_generator))
-    #
-    # for im in input:
-    #     plt.imshow(im)
-    #     plt.show()
 
     data_generator = generate_yolo_train_data(20, [1,2,3],
-                                              [(1,1),(2,2),(3,3)], chars_list, ['arial'], (50, 100), (-90, 90), (416, 416))
-    from matplotlib import pyplot as plt
-    input, output = (next(data_generator))
+                                              [(1,1),(2,2),(3,3)], chars_list, ['arial'], (50, 100), (-90,90), (416, 416))
+    img, char_indices, bboxes = generate_rotated_multi_character_picture(chars_list, ['arial'], (50,100),
+                                             char_count=5, angle_range=(-np.pi/2, np.pi/2), image_resolution=(416,416))
+    img = Image.fromarray((img * 255).astype('uint8'))
+    img = draw_bounding_rect_on_image(img, bboxes)
+    plt.imshow(img)
+    plt.show()
 
-    for im in input:
-        plt.imshow(im)
-        plt.show()
+
