@@ -9,7 +9,7 @@ from colour import Color
 from keras.utils import to_categorical
 
 # from data.augmentor.Pipeline import Pipeline
-from data.bounding_box_converter import draw_bounding_rect_on_image
+from data.bounding_box_converter import draw_bounding_rect_on_image, read_dataset_csv
 
 Size = Tuple[int, int]
 
@@ -298,6 +298,33 @@ def generate_rotated_multi_character_picture(
         bboxes = np.concatenate((bboxes, bbox[np.newaxis, ...]))
         cells.remove(cell)
     return np.array(bg), char_indices, bboxes
+
+
+def generate_synth_text_data(batch_size, cell_sizes, anchor_boxes, char_list):
+    dataset = read_dataset_csv("data/synth_data.csv")
+    last = 0
+    while True:
+        out = []
+        for i in range(last, last+min(batch_size, len(dataset)-last)):
+            synth_text_img = dataset[i]
+            img_data = (
+                np.array(Image.open(synth_text_img.imname)),
+                [chars_list.index(c) if c in chars_list else -1 for c in synth_text_img.chars],
+                synth_text_img.bounding_boxes
+            )
+            yolo_data = transform_to_yolo_data(img_data, cell_sizes, anchor_boxes, len(char_list))
+            if len(out) == 0:
+                images = img_data[0][np.newaxis, ...]
+                out = [
+                    tensor[np.newaxis, ...] for tensor in yolo_data
+                ]
+            else:
+                images = np.concatenate((images,  img_data[0][np.newaxis, ...]), axis=0)
+                out[0] = np.concatenate((out[0], yolo_data[0][np.newaxis, ...]), axis=0)
+                out[1] = np.concatenate((out[1], yolo_data[1][np.newaxis, ...]), axis=0)
+                out[2] = np.concatenate((out[2], yolo_data[2][np.newaxis, ...]), axis=0)
+            last = i
+        yield out
 
 
 if __name__ == '__main__':
