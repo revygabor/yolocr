@@ -13,19 +13,21 @@ from data.generate_data import generate_train_data
 
 BATCH_SIZE = 4
 VAL_SIZE = 10
-N_EPOCHS = 50000
+N_EPOCHS = 5000
 N_ITERATIONS = 100
 
 TRAIN = True
-TRAIN_FROM_START = True
+TRAIN_FROM_START = False
 
 chars_list = list(string.ascii_letters)[:10]
 # chars_list.extend(list(string.digits))
 n_categories = len(chars_list)
 
 if TRAIN:
-    train_data_generator = generate_train_data(BATCH_SIZE, chars_list, ['arial'], (50, 100))
-    val_data_generator = generate_train_data(VAL_SIZE, chars_list, ['arial'], (50, 100))
+    train_data_generator = generate_train_data(BATCH_SIZE, chars_list, ['arial'], (50, 100), angle_range=(-np.pi/6, np.pi/6))
+    # train_data_generator = generate_train_data(BATCH_SIZE, chars_list, ['arial'], (50, 100), angle_range=(0,0))
+    val_data_generator = generate_train_data(VAL_SIZE, chars_list, ['arial'], (50, 100), angle_range=(-np.pi/6, np.pi/6))
+    # val_data_generator = generate_train_data(VAL_SIZE, chars_list, ['arial'], (50, 100), angle_range=(0,0))
 
     # inputs = Input(shape=(None, None, 3))
     inputs = Input(shape=(416, 416, 3))
@@ -48,8 +50,8 @@ if TRAIN:
     # callback model checkpoint
     checkpoint = ModelCheckpoint('model.h5', save_best_only=True, monitor='loss')
 
-    # optimizer = SGD(lr=3e-4, momentum=0.2, decay=0.1, nesterov=True)
-    optimizer = Adam()
+    optimizer = SGD(lr=3e-5, momentum=0.2, decay=0.1, nesterov=True)
+    # optimizer = Adam()
 
     # callback for reduce learning rate on plateau
     lr_reduce = ReduceLROnPlateau(monitor='loss', factor=0.3, patience=50, verbose=1)
@@ -65,7 +67,8 @@ if TRAIN:
     model_feature_extractor.save('model_feature_extractor.h5')
 
 # testing the model
-test_data_generator = generate_train_data(10, chars_list, ['arial'], (50, 100))
+# test_data_generator = generate_train_data(10, chars_list, ['arial'], (50, 100), angle_range=(0,0))
+test_data_generator = generate_train_data(10, chars_list, ['arial'], (50, 100), angle_range=(-np.pi/6, np.pi/6))
 model = load_model('model.h5')
 test_x, test_y = next(test_data_generator)
 preds = model.predict(test_x)
