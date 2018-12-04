@@ -11,6 +11,8 @@ class Operation(object):
         All operations must at least have a :attr:`probability` which is
         initialised when creating the operation's object.
 
+        Parameters
+        ----------
         :param probability: Controls the probability that the operation is
          performed when it is invoked in the pipeline.
         :type probability: Float
@@ -23,6 +25,8 @@ class Operation(object):
         used by the :func:`Pipeline.status` to display the current pipeline's
         operations in a human readable way.
 
+        Parameters
+        ----------
         :return: A string representation of the operation. Can be overridden
          if required, for example as is done in the :class:`Rotate` class.
         """
@@ -35,6 +39,8 @@ class Operation(object):
         PIL.Image, performs its operation, and returns a new list containing
         objects of type PIL.Image.
 
+        Parameters
+        ----------
         :param images: The image(s) to transform.
         :type images: List containing PIL.Image object(s).
         :return: The transformed image(s) as a list of object(s) of type

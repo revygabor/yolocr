@@ -4,7 +4,16 @@ from keras.layers import UpSampling2D, concatenate, Conv2D
 from architecture.architecture_feature_exctractor import create_feature_extractor
 
 
-def create_yolocr_architectre(inputs, n_classes):
+def create_yolocr_architecture(inputs, n_classes):
+    """
+    Creates our YOLOCR architecture 
+
+    Parameters
+    ----------
+    :param inputs: input data
+    :param n_classes: number of classes to be distinguished
+    :return: feature_extractor and the model
+    """
     output_channel_size = 1 + 5 + n_classes
     kernel_size = 3
 

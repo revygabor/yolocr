@@ -8,6 +8,9 @@ import matplotlib.pyplot as plt
 def bb_to_rect(points: List[np.ndarray]):
     """
     Calculates an appropriate rotated bounding rectangle based on the four points of the bounding general quad.
+
+    Parameters
+    ----------
     :param points: The four points of the bounding quad, given as a list of 2 element numpy arrays.
     :return: the calculated bounding rectangle in the form of [center_x, center_y, width, height, rotation]
     """
@@ -76,6 +79,9 @@ class SynthTextImage:
 def draw_bounding_rect_on_image(image: Image, bounding_rects: List[List[float]]):
     """
     Function used to draw bounding rectangles on the given PIL image
+
+    Parameters
+    ----------
     :param image: PIL image on which to draw the rectangles
     :param bounding_rects: bounding rectangles given as a list of [center_x, center_y, width, height, rotation]
     :return: the modified PIL image
@@ -114,6 +120,9 @@ def draw_bounding_rect_on_image(image: Image, bounding_rects: List[List[float]])
 def read_dataset_csv(path: str) -> List[SynthTextImage]:
     """
     Utility function used to read the SynthText ground truth data given as a csv file
+
+    Parameters
+    ----------
     :param path: the path of the SynthText csv file
     :return: SynthText ground truth dataset as a list of :class:`SynthTextImage` objects
     """
@@ -140,6 +149,9 @@ def read_dataset_csv(path: str) -> List[SynthTextImage]:
 def show_samples(dataset: List[SynthTextImage], path_prefix: str='data/SynthText'):
     """
     Utility function used to plot the results of the bounding quad to bounding rectangle conversion
+
+    Parameters
+    ----------
     :param dataset: the ground truth data given as a list of :class:`SynthTextImage` objects
     :param path_prefix: folder path where the SynthText images can be found
     """

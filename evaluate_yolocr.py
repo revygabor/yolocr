@@ -9,6 +9,7 @@ from data.generate_data import generate_yolo_train_data
 from data.postprocess import yolo_tensor_to_boxes
 from train_yolocr import yolo_loss
 
+# setting up hyperparameters and data generator
 BATCH_SIZE = 20
 chars_list = list(string.ascii_letters)
 chars_list.extend(list(string.digits))
@@ -18,6 +19,7 @@ image_resolution = (416, 416)
 data_generator = generate_yolo_train_data(BATCH_SIZE, cell_sizes,
                                           anchor_boxes, chars_list, ['arial'], (50, 100), (0, 0), image_resolution)
 
+# loading the model and predict on the examples
 model = load_model('yolocr_model.h5', custom_objects={'yolo_loss': yolo_loss})
 images, output = next(data_generator)
 predictions = model.predict(images)

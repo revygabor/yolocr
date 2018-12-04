@@ -60,6 +60,8 @@ class Pipeline(object):
         be augmented. The scan will find any image files with the extensions
         JPEG/JPG, PNG, and GIF (case insensitive).
 
+        Parameters
+        ----------
         :param source_directory: A directory on your filesystem where your
          original images are stored.
         :param output_directory: Specifies where augmented images should be
@@ -98,6 +100,8 @@ class Pipeline(object):
 
         This method is used by :func:`__init__`.
 
+        Parameters
+        ----------
         :param source_directory: The directory to scan for images.
         :param output_directory: The directory to set for saving files.
          Defaults to a directory named output relative to
@@ -161,6 +165,8 @@ class Pipeline(object):
         back to the user. Currently this is fixed to True, as Augmentor
         has only been implemented to save to disk at present.
 
+        Parameters
+        ----------
         :param augmentor_image: The image to pass through the pipeline.
         :param save_to_disk: Whether to save the image to disk. Currently
          fixed to true.
@@ -228,7 +234,8 @@ class Pipeline(object):
         are by default stored in an ``output`` directory, relative to the
         path defined during the pipeline's instantiation.
 
-
+        Parameters
+        ----------
         :param n: The number of new samples to produce.
         :param save_to_disk:
         :type n: Integer
@@ -276,6 +283,8 @@ class Pipeline(object):
 
          .. seealso:: The :class:`.Operation` class.
 
+        Parameters
+        ----------
         :param operation: An object of the operation you wish to add to the
          pipeline. Will accept custom operations written at run-time.
         :type operation: Operation
@@ -295,6 +304,8 @@ class Pipeline(object):
          .. seealso:: Use the :func:`status` function to find an operation's
           index.
 
+        Parameters
+        ----------
         :param operation_index: The index of the operation to remove.
         :type operation_index: Integer
         :return: The removed operation. You can reinsert this at end of the
@@ -320,6 +331,8 @@ class Pipeline(object):
         outside of these approximate ranges may result in unpredictable
         behaviour.
 
+        Parameters
+        ----------
         :param probability: A value between 0 and 1 representing the
          probability that the operation should be performed.
         :param grid_width: The number of rectangles in the grid's horizontal
@@ -356,6 +369,8 @@ class Pipeline(object):
         outside of these approximate ranges may result in unpredictable
         behaviour.
 
+        Parameters
+        ----------
         :param probability: A value between 0 and 1 representing the
          probability that the operation should be performed.
         :param grid_width: The number of rectangles in the grid's horizontal
@@ -421,6 +436,9 @@ class Pipeline(object):
         If this function returns images that are not rendered correctly, then
         you must reduce the :attr:`max_left_rotation` and
         :attr:`max_right_rotation` arguments!
+        
+        Parameters
+        ----------
         :param probability: A value between 0 and 1 representing the
          probability that the operation should be performed.
         :param max_left_rotation: The maximum number of degrees the image can

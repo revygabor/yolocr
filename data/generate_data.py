@@ -17,7 +17,9 @@ Size = Tuple[int, int]
 def get_random_background(size: Size) -> Image.Image:
     """
     Creates a background with random color and gradient
-    -------------------------------------
+    
+    Parameters
+    ----------
     :param size: size of the output image
     :return: randim background image
     """
@@ -39,6 +41,9 @@ def put_char_on_bg(bg: Image.Image, char: str, font_name: str, size: int,
                    angle: float = 0) -> Image.Image:
     """
     Puts a char on an image.
+
+    Parameters
+    ----------
     :param angle: the angle of rotation of the character
     :param bg: image to put the char on
     :param char: character to put
@@ -73,7 +78,9 @@ def put_char_at_random_pos(
         free_region: Tuple[int, int, int, int] = None, angle: float = 0) -> Tuple[Image.Image, np.ndarray]:
     """
     Puts a char at a random position
-    --------------------------------
+    
+    Parameters
+    ----------
     :param angle: the angle of rotation of the character
     :param bg: background to put the char on
     :param char: the char we want to put on the background
@@ -117,7 +124,9 @@ def put_char_at_random_pos(
 def draw_bounding_boxes(image: np.ndarray, bboxes: np.ndarray):
     """
     Draws bounding boxes on the picture. [0, 255]!!!!!
-    ---------------------------------
+    
+    Parameters
+    ----------
     :param image: image to draw on
     :param bboxes: [[x, y (center), w, h]] list of bounding boxes
     :return: image with the boxes drawn on
@@ -135,7 +144,9 @@ def draw_bounding_boxes(image: np.ndarray, bboxes: np.ndarray):
 def train_boxes_to_vertices(bbox: np.ndarray):
     """
     Converts x, y (center), w, h to 4 vertices for showing bounding boxes
-    -----------------------------------
+    
+    Parameters
+    ----------
     :param bbox:  [x, y (center), w, h]
     :return: [(x0, y0), (x1, y1), (x2, y2), (x3, y3)]
     """
@@ -155,7 +166,9 @@ def generate_train_data(batch_size: int, char_list: List[str], font_list: List[s
                         size_interval: Tuple[int, int], angle_range: Tuple[int, int]=(0,0), image_resolution : Tuple[int, int]=(416, 416)):
     """
     Generates images and labels for training
-    -----------------------------
+    
+    Parameters
+    ----------
     :param batch_size: batch size
     :param char_list: list of chars to chose from
     :param font_list: list of fonts to choose from
@@ -182,7 +195,9 @@ def transform_to_yolo_data(
         cell_sizes: List[int], anchor_boxes: List[Tuple[int, int]], char_list_length: int):
     """
     Generates a ground truth output to train YOLOCR with.
-    -----------------------------------------------------
+    
+    Parameters
+    ----------
     :param image_data: (image, char_index, bbox)
         image: generated image
         char_index: character list indices of the characters drawn on the picture
@@ -236,7 +251,9 @@ def generate_yolo_batch(
         size_interval: Tuple[int, int], angle_range: Tuple[int, int] = (0,0), image_resolution: Tuple[int, int]=(416, 416)):
     """
     Generates a batch of (input, output) tuples)
-    --------------------------------------------
+    
+    Parameters
+    ----------
     :param batch_size: batch size
     :param cell_sizes: size of the grid cells in in each output scale
     :param anchor_boxes: size of the anchor boxes in each output scale

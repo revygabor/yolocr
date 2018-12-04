@@ -11,6 +11,7 @@ from keras.models import load_model
 from architecture.architecture_feature_exctractor import create_feature_extractor
 from data.generate_data import generate_train_data
 
+# setting up hyperparameters
 BATCH_SIZE = 4
 VAL_SIZE = 10
 N_EPOCHS = 5000

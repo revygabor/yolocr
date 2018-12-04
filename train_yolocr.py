@@ -7,7 +7,7 @@ from keras.optimizers import SGD, Adam
 import keras.backend as K
 import numpy as np
 
-from architecture.architecture_yolocr import create_yolocr_architectre
+from architecture.architecture_yolocr import create_yolocr_architecture
 from data.generate_data import generate_yolo_train_data
 
 chars_list = list(string.ascii_letters)
@@ -26,6 +26,9 @@ lambdanoobj = .5
 def yolo_loss(y_true, y_pred):
     """
     Custom Loss function for YOLO
+
+    Parameters
+    ----------
     :param y_true: has a shape of SCALE X BATCH X GRIDX X GIRDY X (6+NUM_CLASSES) TODO Fix this
     :param y_pred: has a shape of SCALE X GIRDX X GIRDY X (6+NUM_CLASSES)
     """
@@ -59,7 +62,7 @@ if __name__ == '__main__':
 
     # inputs = Input(shape=(None, None, 3))
     inputs = Input(shape=(416, 416, 3))
-    feature_extractor, yolocr = create_yolocr_architectre(inputs, n_classes)
+    feature_extractor, yolocr = create_yolocr_architecture(inputs, n_classes)
 
     # we load the weights into the feature extractor
     feature_extractor.load_weights('model_feature_extractor.h5')

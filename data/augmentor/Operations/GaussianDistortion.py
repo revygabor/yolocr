@@ -18,7 +18,9 @@ class GaussianDistortion(Operation):
         that larger grid sizes can result in finer, less severe distortions.
         As well as this, the magnitude of the distortions vectors can
         also be adjusted.
-
+        
+        Parameters
+        ----------
         :param probability: Controls the probability that the operation is
          performed when it is invoked in the pipeline.
         :param grid_width: The width of the gird overlay, which is used
@@ -75,6 +77,8 @@ class GaussianDistortion(Operation):
         Distorts the passed image(s) according to the parameters supplied
         during instantiation, returning the newly distorted image.
 
+        Parameters
+        ----------
         :param images: The image(s) to be distorted.
         :type images: List containing PIL.Image object(s).
         :return: The transformed image(s) as a list of object(s) of type

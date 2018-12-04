@@ -30,6 +30,9 @@ class RotateRange(Operation):
         degrees by which to rotate to the left, while the
         :attr:`max_right_rotation` controls the maximum number of degrees to
         rotate to the right.
+        
+        Parameters
+        ----------
         :param probability: Controls the probability that the operation is
          performed when it is invoked in the pipeline.
         :param max_left_rotation: The maximum number of degrees to rotate
@@ -51,6 +54,9 @@ class RotateRange(Operation):
         :attr:`max_right_rotation` passed into the constructor to control
         the amount of degrees to rotate by. Whether the image is rotated
         clockwise or anti-clockwise is chosen at random.
+        
+        Parameters
+        ----------
         :param images: The image(s) to rotate.
         :type images: List containing PIL.Image object(s).
         :return: The transformed image(s) as a list of object(s) of type

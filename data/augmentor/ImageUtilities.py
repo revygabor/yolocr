@@ -33,6 +33,8 @@ class AugmentorImage(object):
         file path is required, as well as that image's output directory,
         which defines where any augmented images are stored.
 
+        Parameters
+        ----------
         :param image_path: The full path to an image.
         :param output_directory: The directory where augmented images for this
          image should be saved.
@@ -188,6 +190,8 @@ def extract_paths_and_extensions(image_path):
     Extract an image's file name, its extension, and its root path (the
     image's absolute path without the file name).
 
+    Parameters
+    ----------
     :param image_path: The path to the image.
     :type image_path: String
     :return: A 3-tuple containing the image's file name, extension, and
@@ -262,6 +266,8 @@ def scan_directory(source_directory):
     extensions ``.jpg``, ``.JPG``, ``.jpeg``, ``.JPEG``, ``.gif``, ``.GIF``,
     ``.img``, ``.IMG``, ``.png`` or ``.PNG``.
 
+    Parameters
+    ----------
     :param source_directory: The directory to scan for images.
     :type source_directory: String
     :return: A list of images found in the :attr:`source_directory`
