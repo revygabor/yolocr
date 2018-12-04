@@ -111,7 +111,7 @@ def draw_bounding_rect_on_image(image: Image, bounding_rects: List[List[float]])
     return image
 
 
-def read_dataset_csv(path: str="data/synth_data.csv") -> List[SynthTextImage]:
+def read_dataset_csv(path: str) -> List[SynthTextImage]:
     """
     Utility function used to read the SynthText ground truth data given as a csv file
     :param path: the path of the SynthText csv file
@@ -160,6 +160,6 @@ def show_samples(dataset: List[SynthTextImage], path_prefix: str='data/SynthText
 
 
 if __name__ == '__main__':
-    dataset = read_dataset_csv()
+    dataset = read_dataset_csv("data/synth_data.csv")
     show_samples(dataset)
 
