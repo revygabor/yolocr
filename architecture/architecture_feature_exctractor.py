@@ -1,4 +1,4 @@
-from keras.layers import Conv2D, LeakyReLU, BatchNormalization, add, MaxPool2D #, Activation
+from keras.layers import Conv2D, LeakyReLU, MaxPool2D
 
 def create_feature_extractor(input):
     """
@@ -23,24 +23,11 @@ def create_feature_extractor(input):
     x = conv2d_unit    (x, 320,  3)
     low_res = MaxPool2D(pool_size=(2,2), padding='same') (x)
 
-
-    # x       = conv2d_unit(input, 32,   3)
-    # x       = conv2d_unit    (x, 64,   3, 2)
-    # x, _    = _residual_units (x, 32, n=1)
-    # x       = conv2d_unit    (x, 128,  3, 2)
-    # x, _    = _residual_units (x, 64, n=2)
-    # x       = conv2d_unit    (x, 256,  3, 2)
-    # x, l_36 = _residual_units (x, 128, n=8) #------36th layer before the 'add' in the residual block
-    # x       = conv2d_unit    (x, 256,  3, 2)
-    # x, l_61 = _residual_units (x, 128, n=8) #------61st layer before the 'add' in the residual block
-    # x       = conv2d_unit    (x, 256, 3, 2)
-    # x, _    = _residual_units (x, 128, 4)
-
     return low_res, middle_res, high_res
 
 def conv2d_unit(input, filters, kernel_size, strides=1):
     """
-    Creates a Conv2D layer unit with batch normalization and LeakyReLU activation
+    Creates a Conv2D layer unit with LeakyReLU activation
 
     Parameters
     ----------
@@ -52,16 +39,4 @@ def conv2d_unit(input, filters, kernel_size, strides=1):
     """
     x = Conv2D(filters, kernel_size, strides=strides, padding='same', use_bias=False)(input)
     x = LeakyReLU(alpha = 0.1)(x)
-    # x = BatchNormalization()(x)
     return x
-
-# def _residual_units(input, start_filters, n=1):
-#     x = input
-#
-#     for i in range(n):
-#         start = x
-#         x = conv2d_unit(x, start_filters, 1)
-#         y = conv2d_unit(x, 2*start_filters, 3)
-#         x = add([start, y])
-#
-#     return x, y

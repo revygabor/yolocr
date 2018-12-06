@@ -1,15 +1,12 @@
-import string
 from random import randint, random
 from typing import Tuple, List, Union
 
 import numpy as np
-import matplotlib.pyplot as plt
 from PIL import Image, ImageFont, ImageDraw
 from colour import Color
 from keras.utils import to_categorical
 
-# from data.augmentor.Pipeline import Pipeline
-from data.bounding_box_converter import draw_bounding_rect_on_image, read_dataset_csv
+from data.bounding_box_converter import read_dataset_csv
 
 Size = Tuple[int, int]
 
@@ -21,7 +18,7 @@ def get_random_background(size: Size) -> Image.Image:
     Parameters
     ----------
     :param size: size of the output image
-    :return: randim background image
+    :return: random background image
     """
     start_col = Color(rgb=(random(), random(), random()))  # get random color for the background
     end_col = Color(start_col)
@@ -173,21 +170,20 @@ def generate_train_data(batch_size: int, char_list: List[str], font_list: List[s
     :param char_list: list of chars to chose from
     :param font_list: list of fonts to choose from
     :param size_interval: the intervals we choose the size of the font from
+    :param angle_range: angle range of characters in the image
+    :param image_resolution: resolution of the image
     :return: [image]*batch_size, [char indices one-hot]*batch_size
     """
 
     while True:
         images, indices = [], []
-        # images, bboxes, indices = [], [], []
         for i in range(batch_size):
             image, char_index, bbox = generate_rotated_multi_character_picture(char_list, font_list, size_interval,
                                         char_count=1, angle_range=angle_range, image_resolution=image_resolution)
             image = np.array(image)/255.
             images.append(image)
-            # bboxes.append(bbox)
             indices.append(char_index)
         yield np.array(images), to_categorical(indices, len(char_list))
-        # yield images, to_categorical(indices, len(char_list)), bboxes
 
 
 def transform_to_yolo_data(
@@ -209,8 +205,6 @@ def transform_to_yolo_data(
     """
     if type(image_data[1]) is not list:
         image_data = (image_data[0], [image_data[1]], image_data[2])
-    # if image_data[2] is not list:
-    #     image_data = (image_data[0], image_data[1], [image_data[2]])
     assert len(image_data[1]) == len(image_data[2]), "Character and bounding box should have equal length"
     out_vect_length = 6+char_list_length  # [characterness offsetX offsetY w h rot a-Z+specials]
     tensor_sizes = [
@@ -246,7 +240,7 @@ def transform_to_yolo_data(
 
 
 def generate_yolo_batch(
-        batch_size: int, cell_sizes: List[int], anchor_boxes: List[Tuple[int, int]],
+        batch_size: int, n_chars: int, cell_sizes: List[int], anchor_boxes: List[Tuple[int, int]],
         char_list: List[str], font_list: List[str],
         size_interval: Tuple[int, int], angle_range: Tuple[int, int] = (0,0), image_resolution: Tuple[int, int]=(416, 416)):
     """
@@ -255,16 +249,18 @@ def generate_yolo_batch(
     Parameters
     ----------
     :param batch_size: batch size
+    :param n_chars: number of characters on image
     :param cell_sizes: size of the grid cells in in each output scale
     :param anchor_boxes: size of the anchor boxes in each output scale
     :param char_list: list of chars to draw
     :param font_list: list of fonts to use while drawing
     :param size_interval: size interval of the chars drawn on the image
+    :param angle_range: angle range of characters in the image
     :param image_resolution: resolution of the output image
     :return: (image, out), image: normalized image, out: list of output tensors
     """
     for i in range(batch_size):
-        image_data = generate_rotated_multi_character_picture(char_list, font_list, size_interval, 5, angle_range, image_resolution)
+        image_data = generate_rotated_multi_character_picture(char_list, font_list, size_interval, n_chars, angle_range, image_resolution)
         transformed = transform_to_yolo_data(image_data, cell_sizes, anchor_boxes, len(char_list))
         if i == 0:
             images = image_data[0][np.newaxis, ...]
@@ -283,11 +279,26 @@ def generate_yolo_batch(
 
 
 def generate_yolo_train_data(
-        batch_size: int, cell_sizes: List[int], anchor_boxes: List[Tuple[int, int]],
+        batch_size: int, n_chars: int, cell_sizes: List[int], anchor_boxes: List[Tuple[int, int]],
         char_list: List[str], font_list: List[str],
         size_interval: Tuple[int, int], angle_range: Tuple[int, int] = (0,0), image_resolution: Tuple[int, int]=(416, 416)):
+    """
+    Yields a batch for training yolocr.
+
+    Parameters
+    ----------
+    :param batch_size: batch size
+    :param n_chars: number of chars on image
+    :param angle_range: range of angle of the chars in image
+    :param cell_sizes: size of the grid cells in in each output scale
+    :param anchor_boxes: size of the anchor boxes in each output scale
+    :param char_list: list of chars to draw
+    :param font_list: list of fonts to use while drawing
+    :param size_interval: size interval of the chars drawn on the image
+    :param image_resolution: resolution of the output image
+    """
     while True:
-        yield generate_yolo_batch(batch_size, cell_sizes, anchor_boxes,
+        yield generate_yolo_batch(batch_size, n_chars, cell_sizes, anchor_boxes,
                             char_list, font_list, size_interval, angle_range, image_resolution)
 
 
@@ -296,6 +307,20 @@ def generate_rotated_multi_character_picture(
         size_interval: Tuple[int, int], char_count: int,
         angle_range: Tuple[float, float],
         image_resolution: Tuple[int, int]=(416, 416)):
+    """
+    Generates a picture containing [0, inf) characters
+
+    Parameters
+    ----------
+    :param char_list: list of chars to draw
+    :param font_list: list of fonts to use while drawing
+    :param size_interval: size interval of the chars drawn on the image
+    :param image_resolution: resolution of the output image
+    :param char_count: number of chars on image
+    :param angle_range: range of angle of the chars in image
+    :param image_resolution: resolution of the output image
+    :return: Image, char indices and bounding boxes in the image
+    """
     bg = get_random_background(image_resolution)
     cells = []
     cell_width = int(image_resolution[0]/char_count)
@@ -317,7 +342,18 @@ def generate_rotated_multi_character_picture(
     return np.array(bg), char_indices, bboxes
 
 
-def generate_synth_text_data(batch_size, cell_sizes, anchor_boxes, char_list):
+def generate_synth_text_data(batch_size, cell_sizes, anchor_boxes, chars_list):
+    """
+    Generates training batch for YOLOCR using the SynthText dataset.
+
+    Parameters
+    ----------
+    :param batch_size: training batch size
+    :param cell_sizes: size of grid cells in yolo
+    :param anchor_boxes: anchor box size in yolo
+    :param char_list: list of characters we want to recognize
+    :return: a batch of training data
+    """
     dataset = read_dataset_csv("data/synth_data.csv")
     last = 0
     while True:
@@ -329,7 +365,7 @@ def generate_synth_text_data(batch_size, cell_sizes, anchor_boxes, char_list):
                 [chars_list.index(c) if c in chars_list else -1 for c in synth_text_img.chars],
                 synth_text_img.bounding_boxes
             )
-            yolo_data = transform_to_yolo_data(img_data, cell_sizes, anchor_boxes, len(char_list))
+            yolo_data = transform_to_yolo_data(img_data, cell_sizes, anchor_boxes, len(chars_list))
             if len(out) == 0:
                 images = img_data[0][np.newaxis, ...]
                 out = [
@@ -342,19 +378,3 @@ def generate_synth_text_data(batch_size, cell_sizes, anchor_boxes, char_list):
                 out[2] = np.concatenate((out[2], yolo_data[2][np.newaxis, ...]), axis=0)
             last = i
         yield out
-
-
-if __name__ == '__main__':
-    chars_list = list(string.ascii_letters)
-    chars_list.extend(list(string.digits))
-
-    data_generator = generate_yolo_train_data(20, [1,2,3],
-                                              [(1,1),(2,2),(3,3)], chars_list, ['arial'], (50, 100), (-90,90), (416, 416))
-    img, char_indices, bboxes = generate_rotated_multi_character_picture(chars_list, ['arial'], (50,100),
-                                             char_count=5, angle_range=(-np.pi/2, np.pi/2), image_resolution=(416,416))
-    img = Image.fromarray((img * 255).astype('uint8'))
-    img = draw_bounding_rect_on_image(img, bboxes)
-    plt.imshow(img)
-    plt.show()
-
-

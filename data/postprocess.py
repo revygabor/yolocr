@@ -8,7 +8,14 @@ from data.generate_data import generate_yolo_train_data
 
 
 def _sigmoid(x):
-    return 1 / (1 + np.exp(-x))
+    shape = x.shape
+    x = x.reshape((-1))
+    mask = x > 0
+    x[mask] = 1 / (1 + np.exp(-x[mask]))
+    mask = np.invert(mask)
+    x[mask] = np.exp(x[mask]) / (np.exp(x[mask]) + 1)
+    x = x.reshape(shape)
+    return x
 
 def activation(out_tensors: List[np.ndarray]):
     for i in range(len(out_tensors)):
@@ -60,41 +67,3 @@ def yolo_tensor_to_boxes(out_tensors: List[np.ndarray], anchor_boxes: List[Tuple
         bboxes = np.concatenate((bboxes, bb))
 
     return conf_all, bboxes, char_indices_all
-
-
-
-if __name__ == '__main__':
-    import string
-    from matplotlib import pyplot as plt
-
-    chars_list = list(string.ascii_letters)
-    chars_list.extend(list(string.digits))
-    cell_sizes = [16, 8, 4]
-    anchor_boxes = [(64, 64), (32, 32), (16, 16)]
-    batch_size = 5
-    image_resolution = (416, 416)
-    generator = generate_yolo_train_data(batch_size, cell_sizes,
-                                         anchor_boxes, chars_list, ['arial'], (50, 100), (-np.pi/2, np.pi/2), image_resolution)
-
-    images, outputs = next(generator)
-
-    for batch_index in range(batch_size):
-        out_tensors = [scale[batch_index] for scale in outputs]
-        # out_tensors = activation(out_tensors) # TODO
-        conf, bboxes, char_indices = yolo_tensor_to_boxes(out_tensors, anchor_boxes, image_resolution, confidence_threshold=0.5)
-        chars = [chars_list[i] for i in char_indices]
-
-        img = Image.fromarray((images[batch_index] * 255).astype('uint8'))
-        print(bboxes)
-        img = draw_bounding_rect_on_image(img, bboxes)
-        plt.imshow(img)
-        plt.show()
-
-
-
-
-
-
-
-
-

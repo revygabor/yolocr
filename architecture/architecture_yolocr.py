@@ -14,6 +14,7 @@ def create_yolocr_architecture(inputs, n_classes):
     :param n_classes: number of classes to be distinguished
     :return: feature_extractor and the model
     """
+
     output_channel_size = 1 + 5 + n_classes
     kernel_size = 3
 
