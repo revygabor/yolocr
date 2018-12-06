@@ -2,7 +2,10 @@
 
 ## Documentation
 
-You can find our documentation for the 1st milestone [here](https://docs.google.com/document/d/1TwqhG_d8tC9FdpSsMgAyeKpe7Og8GrGLHhAPO04WGOE/edit?usp=sharing) and for the 2nd milestone [here](https://docs.google.com/document/d/1KtLaAcJHO-SYGYOT59aBaWUXCOxRgrmBJb7ZWAIh6eI/edit?usp=sharing).
+You can find our documentation 
+* for the 1st milestone [here](https://docs.google.com/document/d/1TwqhG_d8tC9FdpSsMgAyeKpe7Og8GrGLHhAPO04WGOE/edit?usp=sharing)
+* for the 2nd milestone [here](https://docs.google.com/document/d/1KtLaAcJHO-SYGYOT59aBaWUXCOxRgrmBJb7ZWAIh6eI/edit?usp=sharing)
+* for the final version [here](https://docs.google.com/document/d/1DVGFmm6w6-wz5MksiN7eJ4tMSs81EbE6fFHcfwob49E/edit?usp=sharing)
 
 ## Purpose and conception
 
